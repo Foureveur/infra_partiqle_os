@@ -85,7 +85,7 @@ const config = {
     token: str('GLITCHTIP_TOKEN', null),
   },
   roadmaps: {
-    summaryUrl: str('ROADMAPS_SUMMARY_URL', 'https://roadmaps.partiqle.studio/api/infra/summary'),
+    summaryUrl: str('ROADMAPS_SUMMARY_URL', 'https://roadmaps.partiqle.studio/api/v1/infra/summary'),
     token: str('ROADMAPS_TOKEN', null),
   },
   hostinger: {
