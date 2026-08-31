@@ -148,6 +148,11 @@ async function collect() {
     if (!live) return { ...m, up: null, paused: true };
     return {
       ...m,
+      // La page de statut n'expose l'URL d'un moniteur que si « lien cliquable »
+      // est activé dessus — ce n'est pas le cas par défaut. /metrics la porte
+      // toujours : sans cette reprise, les pastilles de santé du launcher
+      // n'auraient rien à quoi se rattacher.
+      url: m.url || live.url || null,
       up: live.value === 1,
       maintenance: live.value === 3,
       avgResponseMs: metrics.duration.get(m.name) ?? m.avgResponseMs,
