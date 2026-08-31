@@ -9,6 +9,36 @@ utilisable avec des cartes grises.
 
 ---
 
+## Voie rapide : l'installeur
+
+Les étapes 0 à 3 sont automatisées par `deploy/install.sh`. Trois commandes
+depuis le Mac, chacune sur **une seule ligne** — donc aucun risque qu'un bloc
+collé s'exécute en local au lieu du serveur :
+
+```bash
+ssh vps-core 'cd /opt/studio-os/services && git clone https://github.com/Foureveur/infra_partiqle_os.git infra'
+ssh vps-core 'bash /opt/studio-os/services/infra/deploy/install.sh --check'
+ssh vps-core 'bash /opt/studio-os/services/infra/deploy/install.sh --apply'
+```
+
+`--check` ne modifie rien : il dit ce qu'il ferait et signale ce qui cloche
+(réseau compose portant un autre nom, docker absent…). Le script est
+idempotent : le relancer ne duplique rien.
+
+Il sauvegarde `docker-compose.yml` et le `Caddyfile` avant de les toucher, et
+**valide la config Caddy avant de recharger** — si elle est invalide, il
+restaure la sauvegarde et ne recharge rien. Une config Caddy cassée couperait
+tous les sous-domaines, pas seulement celui-ci.
+
+Restent à faire à la main ensuite : les étapes 4 à 7 (Kuma, GlitchTip,
+Roadmaps, Hostinger, sauvegardes), qui demandent des jetons, et la pousse sur
+les trois autres VPS (étape 3, seconde moitié).
+
+Le reste de ce document détaille chaque étape, pour la faire soi-même ou pour
+comprendre ce que l'installeur fabrique.
+
+---
+
 ## 0. Poser le code
 
 ```bash
