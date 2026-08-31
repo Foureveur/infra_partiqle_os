@@ -192,6 +192,66 @@ console.log(((!j.sources.kuma.ok && kuma!==null)||(!j.sources.glitchtip.ok && gt
 [ "$GREEN" = "propre" ] && ok "une source en échec ne laisse filtrer aucune donnée « bonne »" \
   || ko "fuite de données d'une source en échec"
 
+# --------------------------------------------------------- sauvegardes
+# La carte la plus facile à rater (§3.8). On vérifie qu'elle ne peut PAS être
+# verte sans preuve, dans les quatre façons de ne pas savoir.
+head2 "Sauvegardes — jamais vert sans preuve"
+
+push_backup() { # $1 = corps du bloc backup (ou vide pour aucun)
+  BODY="$(node -e '
+const backup = process.argv[1] ? JSON.parse(process.argv[1]) : null;
+const p = { reportedAt: new Date().toISOString(), machine: { hostname: "core" }, services: [] };
+if (backup) p.backup = backup;
+process.stdout.write(JSON.stringify(p));' "$1")"
+  printf '%s' "$BODY" | curl -sS -o /dev/null -X POST \
+    -H "Authorization: Bearer $INFRA_PUSH_TOKEN_VPS_CORE" -H 'Content-Type: application/json' \
+    --data @- "$BASE/api/ingest/vps-core"
+  node src/collector/index.js --only=backups --force > /dev/null 2>&1
+  node src/collector/index.js --only=machines --force > /dev/null 2>&1
+}
+
+backup_of() { curl -sS "$BASE/api/state" | node -e '
+let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);
+const b=(j.backups||[]).find(x=>x.target==="vps-core");
+console.log(b ? b.severity+"|"+(b.reason||"") : "absent");})'; }
+
+# 1. La machine pousse, mais sans veilleur greffé : on ne sait pas.
+push_backup ""
+R="$(backup_of)"
+case "$R" in unknown*veilleur*) ok "pousse sans veilleur ⇒ inconnu (${R#*|})" ;;
+  *) ko "pousse sans veilleur" "obtenu : $R" ;; esac
+
+# 2. Snapshot frais et dépôt lisible : et SEULEMENT là, vert.
+FRESH="$(node -e 'console.log(new Date(Date.now()-3*3600e3).toISOString())')"
+push_backup "{\"lastSnapshotAt\":\"$FRESH\",\"repoReadable\":true,\"thresholdHours\":36,\"checkedAt\":\"$FRESH\"}"
+R="$(backup_of)"
+[ "${R%%|*}" = "ok" ] && ok "snapshot de 3 h, dépôt lisible ⇒ à jour" || ko "snapshot frais" "obtenu : $R"
+
+# 3. Snapshot au-delà du seuil du veilleur LOCAL (36 h) : rouge.
+OLD="$(node -e 'console.log(new Date(Date.now()-50*3600e3).toISOString())')"
+NOW_ISO="$(node -e 'console.log(new Date().toISOString())')"
+push_backup "{\"lastSnapshotAt\":\"$OLD\",\"repoReadable\":true,\"thresholdHours\":36,\"checkedAt\":\"$NOW_ISO\"}"
+R="$(backup_of)"
+[ "${R%%|*}" = "danger" ] && ok "snapshot de 50 h contre un seuil de 36 h ⇒ rouge" || ko "snapshot périmé" "obtenu : $R"
+
+# 4. Dépôt illisible : rouge, et surtout pas vert par absence de date.
+push_backup "{\"lastSnapshotAt\":null,\"repoReadable\":false,\"thresholdHours\":36,\"checkedAt\":\"$NOW_ISO\"}"
+R="$(backup_of)"
+[ "${R%%|*}" = "danger" ] && ok "dépôt illisible ⇒ rouge, pas vert par défaut" || ko "dépôt illisible" "obtenu : $R"
+
+# 5. Le veilleur ne rend plus compte : la date reste vraie mais plus personne
+#    ne la vérifie. Un constat périmé ne peut pas rester vert.
+push_backup "{\"lastSnapshotAt\":\"$FRESH\",\"repoReadable\":true,\"thresholdHours\":36,\"checkedAt\":\"$FRESH\"}"
+node -e '
+const fs=require("fs"), p=process.env.INFRA_DATA_DIR+"/machines/vps-core.json";
+const j=JSON.parse(fs.readFileSync(p,"utf8"));
+j.reportedAt=new Date(Date.now()-20*60000).toISOString();
+fs.writeFileSync(p,JSON.stringify(j));'
+node src/collector/index.js --only=backups --force > /dev/null 2>&1
+R="$(backup_of)"
+[ "${R%%|*}" = "unknown" ] && ok "constat vieux de 20 min ⇒ inconnu, malgré un snapshot frais" \
+  || ko "constat périmé" "obtenu : $R"
+
 # --------------------------------------------------- lecture des métriques
 # Deux fois de suite, un lecteur de métriques a rendu `null` sans rien dire —
 # GlitchTip d'abord, Hostinger ensuite. Un `null` silencieux ne se voit pas à

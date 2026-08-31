@@ -84,6 +84,36 @@ function normalizeCrowdsec(raw) {
 }
 
 /**
+ * État de sauvegarde relayé par la machine (§3.8).
+ *
+ * Il vient de watchdog-backups.sh, qui interroge le dépôt restic. On ne prend
+ * QUE l'horodatage du dernier snapshot, jamais un âge ni une sévérité : c'est
+ * le service qui les dérive à chaque requête. Une machine ne doit pas pouvoir
+ * se déclarer « sauvegardée » — elle ne peut que dater son dernier snapshot.
+ *
+ * Absent ou malformé ⇒ null, que le service rendra INCONNU. Surtout pas un
+ * objet vide, qui se lirait comme « pas de sauvegarde » et donc comme une
+ * affirmation rouge alors qu'on n'a rien pu constater.
+ */
+function normalizeBackup(raw, machineId) {
+  if (!raw || typeof raw !== 'object') return null;
+  const lastSnapshotAt = isoDate(raw.lastSnapshotAt);
+  const repoReadable = bool(raw.repoReadable);
+  // Ni date ni verdict de lisibilité : la charge utile ne dit rien d'utile.
+  if (lastSnapshotAt === null && repoReadable === null) return null;
+  return {
+    target: str(raw.target, 60) || machineId,
+    lastSnapshotAt,
+    // Le seuil est celui du veilleur de CETTE machine : l'afficher évite de
+    // laisser croire qu'un seuil central s'applique partout.
+    thresholdHours: int(raw.thresholdHours, 1, 8760),
+    repoReadable: repoReadable ?? false,
+    checkedAt: isoDate(raw.checkedAt),
+    message: str(raw.message, 300),
+  };
+}
+
+/**
  * @param {string} machineId  machine visée par l'URL — fait autorité sur tout
  *                            ce que la charge utile pourrait prétendre.
  */
@@ -139,6 +169,7 @@ function normalizeReport(raw, machineId) {
     },
     services,
     crowdsec: normalizeCrowdsec(raw.crowdsec),
+    backup: normalizeBackup(raw.backup, machineId),
   };
 }
 

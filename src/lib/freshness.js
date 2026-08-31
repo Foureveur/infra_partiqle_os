@@ -116,16 +116,44 @@ function decorateServices(state, machines) {
   }));
 }
 
+/**
+ * L'âge d'un snapshot est dérivé ICI, à chaque requête, jamais écrit par le
+ * veilleur. Sans quoi un veilleur arrêté servirait éternellement le « il y a
+ * 2 h » qu'il avait gravé — la carte la plus facile à rater du tableau de bord
+ * resterait verte pendant que plus rien n'est sauvegardé (§3.8).
+ *
+ * Quatre façons de ne pas savoir, et elles ne se réparent pas au même endroit :
+ * la source a échoué · la machine ne pousse plus · elle pousse sans veilleur
+ * greffé · le veilleur tourne mais ne lit plus son dépôt. Toutes donnent de
+ * l'INCONNU ; le motif est porté par `reason` pour que la carte le dise.
+ */
 function decorateBackups(state, sourceOk, now) {
   return (state.backups || []).map((b) => {
-    const age = ageSeconds(b.finishedAt, now);
-    let severity;
-    if (!sourceOk || age === null) severity = 'unknown';
-    else if (b.ok === false) severity = 'danger';
-    else if (age > config.backupCritSeconds) severity = 'danger';
-    else if (age > config.backupWarnSeconds) severity = 'warn';
-    else severity = 'ok';
-    return { ...b, ageSeconds: age, severity };
+    const age = ageSeconds(b.lastSnapshotAt, now);
+    // Fraîcheur du CONSTAT, distincte de celle du snapshot : un veilleur muet
+    // annonce peut-être une date exacte, mais plus personne ne la vérifie.
+    const checkAge = ageSeconds(b.reportedAt || b.checkedAt, now);
+    const checkStale = checkAge === null || checkAge > config.machineStaleSeconds;
+
+    // Le seuil du veilleur de la machine fait autorité sur le défaut central :
+    // c'est lui qui déclenche l'alerte Telegram, les deux doivent s'accorder.
+    const crit = Number.isFinite(b.thresholdHours)
+      ? b.thresholdHours * 3600
+      : config.backupCritSeconds;
+    const warn = Math.min(config.backupWarnSeconds, crit);
+
+    let severity = 'ok';
+    let reason = null;
+    if (!sourceOk) { severity = 'unknown'; reason = 'source en échec'; }
+    else if (!b.reported) { severity = 'unknown'; reason = 'machine silencieuse'; }
+    else if (!b.watched) { severity = 'unknown'; reason = 'veilleur non greffé sur cette machine'; }
+    else if (checkStale) { severity = 'unknown'; reason = 'constat périmé — le veilleur ne rend plus compte'; }
+    else if (b.repoReadable === false) { severity = 'danger'; reason = 'dépôt illisible'; }
+    else if (age === null) { severity = 'unknown'; reason = 'aucun snapshot daté'; }
+    else if (age > crit) { severity = 'danger'; reason = 'dernier snapshot au-delà du seuil'; }
+    else if (age > warn) { severity = 'warn'; reason = 'sauvegarde vieillissante'; }
+
+    return { ...b, ageSeconds: age, checkAgeSeconds: checkAge, thresholdSeconds: crit, severity, reason };
   });
 }
 
@@ -185,7 +213,20 @@ function buildAlerts(machines, backups, deadlines, sources, kuma) {
 
   for (const b of backups) {
     if (b.severity === 'danger') {
-      alerts.push({ severity: 'danger', scope: 'backups', text: `sauvegarde ${b.target} en retard ou en échec` });
+      alerts.push({
+        severity: 'danger',
+        scope: 'backups',
+        text: `sauvegarde ${b.target} : ${b.reason || 'en retard'}`,
+      });
+    } else if (b.severity === 'unknown' && !b.watched && b.reported) {
+      // Une machine qui pousse mais dont personne ne surveille les sauvegardes
+      // est le pire des cas : tout est vert autour d'elle, et rien ne dit que
+      // ses données ne sont pas protégées. Ça monte dans le bandeau.
+      alerts.push({
+        severity: 'unknown',
+        scope: 'backups',
+        text: `${b.target} : aucun veilleur de sauvegarde — on ne sait pas si elle est protégée`,
+      });
     }
   }
 

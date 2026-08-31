@@ -300,18 +300,88 @@ chaque requête.
 
 ## 7. Sauvegardes
 
+Relevé le 31/08, en lisant les scripts existants — ce qui a changé la conception.
+
+### Ce que le brief prévoyait, et pourquoi c'était faux
+
+Le plan initial greffait un rapport en fin de `backup-core.sh`, portant le code
+de sortie de restic. C'est la mauvaise mesure : « le script s'est exécuté » ne
+dit rien de « les données sont protégées ». C'est exactement l'incident du 28/08
+raconté en tête de `watchdog-backups.sh` — le moniteur « Backup → R2 » restait
+vert en pingant pour une copie devenue obsolète, pendant que la production
+Spacia migrée n'était sauvegardée nulle part.
+
+`watchdog-backups.sh` fait déjà la bonne chose : il interroge **le dépôt** et
+lit l'horodatage du dernier snapshot. On se branche donc sur lui, et on ne
+touche pas au script de sauvegarde.
+
+### Poser la greffe
+
+Sur **chaque** machine qui a un veilleur :
+
 ```bash
-cat /opt/backups/backup-core.sh
-cat /usr/local/bin/watchdog-backups.sh
+bash /chemin/vers/infra/deploy/install-backup-state.sh          # --check
+bash /chemin/vers/infra/deploy/install-backup-state.sh --apply
 ```
 
-**D'abord regarder** s'ils écrivent déjà un état exploitable. Si oui, le
-consommer plutôt que d'ajouter une seconde source de vérité. Sinon seulement,
-greffer `deploy/backup-state-snippet.sh` — il contient les instructions.
+Idempotent. Sauvegarde l'original en `watchdog-backups.sh.bak-infra-<date>`
+avant de toucher quoi que ce soit, vérifie le résultat avec `bash -n`, lance le
+veilleur une fois, et **restaure** si rien n'est produit — un script dont
+dépendent les alertes Telegram ne se laisse pas casser par un tableau de bord.
 
-Tant que `/opt/studio-os/data/infra/backups.json` n'existe pas, la carte
-Sauvegardes est grise, avec le message « le script de sauvegarde n'écrit pas
-encore son état ». Elle ne dit **jamais** que tout va bien.
+Le veilleur écrit alors `/var/lib/infra-report/backup.json` :
+
+```json
+{"target":"vps-core","lastSnapshotAt":"2026-08-31T11:51:15Z","thresholdHours":36,
+ "repoReadable":true,"checkedAt":"2026-08-31T14:51:15Z","message":null}
+```
+
+`infra-report.sh` le relaie dans sa pousse habituelle. Donc : **pas de nouvelle
+route, pas de nouveau secret**, et le collecteur ne touche toujours pas aux clés
+restic — il ne lit que des dates. Le cloisonnement R2 du 28/08 (un dépôt, un
+jeton, un mot de passe par machine) rend d'ailleurs cette forme obligatoire :
+aucun hôte ne peut plus rendre compte pour les autres.
+
+### L'âge n'est jamais écrit, il est dérivé
+
+Le veilleur écrit la **date** du snapshot, pas son âge. Le service calcule
+l'écart à chaque requête (§3.1) : sinon un veilleur arrêté servirait
+éternellement le « il y a 3 h » qu'il avait gravé, et la carte resterait verte
+alors que plus rien n'est sauvegardé.
+
+Le seuil rouge est celui du veilleur **local** (`MAX_AGE_H`, 36 h par défaut),
+pas un seuil central — c'est lui qui déclenche l'alerte Telegram, les deux
+doivent s'accorder.
+
+### Quatre façons de ne pas savoir
+
+Elles donnent toutes de l'inconnu, jamais du vert ni du rouge, et la carte dit
+laquelle — parce qu'elles ne se réparent pas au même endroit :
+
+| motif | où aller |
+|---|---|
+| source en échec | le collecteur |
+| machine silencieuse | `infra-report.sh` et son cron sur cette machine |
+| veilleur non greffé | `install-backup-state.sh --apply` sur cette machine |
+| constat périmé | le cron du veilleur |
+
+Une machine qui pousse mais dont aucun veilleur ne surveille les sauvegardes
+remonte dans le bandeau du haut : c'est le pire des cas, tout est vert autour
+d'elle et rien ne dit que ses données sont protégées.
+
+### Une remarque de sécurité, relevée en lisant le script
+
+`backup-core.sh` copie `/opt/studio-os/services/*.env` dans
+`/opt/backups/dumps/`, qui est ensuite sauvegardé. C'est délibéré et défendable
+— des secrets non sauvegardés sont des secrets perdus. Mais ces copies **restent
+sur le disque** entre deux exécutions, en clair, et contiennent désormais tous
+les jetons de pousse, la clé Kuma, les jetons GlitchTip, Roadmaps et Hostinger.
+Vérifier que `/opt/backups/dumps` n'est lisible que par root :
+
+```bash
+stat -c '%a %U:%G %n' /opt/backups /opt/backups/dumps
+chmod 700 /opt/backups/dumps   # si ce n'est pas déjà le cas
+```
 
 ---
 

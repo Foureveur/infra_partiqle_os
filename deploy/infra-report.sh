@@ -143,6 +143,22 @@ if command -v cscli >/dev/null 2>&1; then
   fi
 fi
 
+# --- État de sauvegarde ------------------------------------------------------
+# Écrit par watchdog-backups.sh, qui interroge le dépôt restic lui-même. On le
+# relaie tel quel : le veilleur est la seule autorité sur cette donnée, l'agent
+# de pousse n'en est que le facteur. Il ne le fabrique jamais — un fichier
+# absent, vide ou tronqué donne `null`, que le service affichera en INCONNU, et
+# surtout pas en « pas de sauvegarde » (qui serait rouge, donc une affirmation).
+BACKUP_JSON='null'
+BACKUP_STATE_FILE="${INFRA_BACKUP_STATE:-/var/lib/infra-report/backup.json}"
+if [ -r "$BACKUP_STATE_FILE" ]; then
+  CANDIDATE="$(tr -d '\n' < "$BACKUP_STATE_FILE" 2>/dev/null)"
+  case "$CANDIDATE" in
+    '{'*'}') BACKUP_JSON="$CANDIDATE" ;;
+    *) log "état de sauvegarde illisible dans $BACKUP_STATE_FILE — ignoré" ;;
+  esac
+fi
+
 # --- Charge utile -----------------------------------------------------------
 LOAD_JSON='null'
 if [ -n "$LOAD1" ]; then LOAD_JSON="[$(num "$LOAD1"),$(num "$LOAD5"),$(num "$LOAD15")]"; fi
@@ -167,7 +183,8 @@ PAYLOAD="$(cat <<JSON
     "dockerAvailable": $DOCKER_AVAILABLE
   },
   "services": $SERVICES_JSON,
-  "crowdsec": $CROWDSEC_JSON
+  "crowdsec": $CROWDSEC_JSON,
+  "backup": $BACKUP_JSON
 }
 JSON
 )"
