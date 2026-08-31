@@ -58,3 +58,19 @@ Les deux crons existants restent tels quels :
 
 Seul le contenu de `backup-core.sh` change, et seulement s'il n'écrit pas déjà
 un état exploitable : voir `deploy/backup-state-snippet.sh`.
+
+## Forcer une collecte
+
+Après avoir renseigné un jeton dans `services/infra.env`, la source concernée
+n'est pas forcément *due* : elle sera reconduite avec son ancienne erreur, et on
+croit à tort que la configuration n'a pas pris. Deux options :
+
+```bash
+# Tout, en ignorant les cadences
+docker compose exec -T infra node src/collector/index.js --force
+
+# Une seule source, pour isoler un problème
+docker compose exec -T infra node src/collector/index.js --only=kuma --force
+```
+
+Sources : `machines`, `backups`, `kuma`, `glitchtip`, `roadmaps`, `hostinger`.

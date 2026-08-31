@@ -26,6 +26,14 @@ const backupsSource = require('./sources/backups');
  *     un fichier tout vert.
  */
 
+// Options de ligne de commande. `--force` ignore les cadences, `--only=<source>`
+// n'en lance qu'une. Sans ça, après avoir renseigné un jeton, on relance le
+// collecteur, la source n'est pas due, elle est reconduite avec son ANCIENNE
+// erreur — et on croit que la configuration n'a pas pris. Piège vécu.
+const ARGS = process.argv.slice(2);
+const FORCE = ARGS.includes('--force');
+const ONLY = (ARGS.find((a) => a.startsWith('--only=')) || '').split('=')[1] || null;
+
 const CADENCES = {
   machines: 0, // fichiers locaux, à chaque passage
   kuma: 5 * 60,
@@ -110,7 +118,8 @@ async function run() {
 
     const results = await Promise.all(
       definitions.map(async (def) => {
-        if (!isDue(def.name, lastRuns, now)) {
+        if (ONLY && def.name !== ONLY) return { name: def.name, skipped: true };
+        if (!FORCE && !isDue(def.name, lastRuns, now)) {
           return { name: def.name, skipped: true };
         }
         try {
@@ -184,6 +193,8 @@ async function run() {
 
     log.info('collector.done', {
       ms: Date.now() - started,
+      ...(FORCE ? { force: true } : {}),
+      ...(ONLY ? { only: ONLY } : {}),
       ran: results.filter((r) => !r.skipped).map((r) => r.name),
       failed: results.filter((r) => r.ok === false).map((r) => r.name),
       machines: machines.length,
