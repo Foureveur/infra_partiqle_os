@@ -189,12 +189,15 @@ fi
 step "Démarrage"
 
 if [ "$MODE" != "apply" ]; then
-  todo "$DC up -d infra   (jamais sans nom de service)"
+  todo "$DC up -d --build infra   (jamais sans nom de service)"
   todo "$DC exec caddy caddy validate, puis reload"
 else
   cd "$STUDIO" || exit 1
-  if $DC up -d infra; then
-    done_ "conteneur infra démarré"
+  # --build est obligatoire, pas une précaution : src/ est COPIÉ dans l'image,
+  # pas monté. Sans lui, mettre à jour le dépôt sur l'hôte ne change rien au
+  # code qui tourne, et on débogue une version qu'on ne lit pas.
+  if $DC up -d --build infra; then
+    done_ "conteneur infra construit et démarré"
   else
     bad "le démarrage a échoué — voir : $DC logs infra"
   fi

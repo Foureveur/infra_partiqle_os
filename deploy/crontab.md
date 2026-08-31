@@ -74,3 +74,20 @@ docker compose exec -T infra node src/collector/index.js --only=kuma --force
 ```
 
 Sources : `machines`, `backups`, `kuma`, `glitchtip`, `roadmaps`, `hostinger`.
+
+## Mettre à jour le code
+
+`src/` et `public/` sont **copiés dans l'image** au build, ils ne sont pas
+montés. Récupérer le dépôt sur l'hôte ne suffit donc pas : sans reconstruction,
+le conteneur continue de faire tourner l'ancien code, et on débogue une version
+qu'on ne lit pas.
+
+```bash
+ssh vps-core 'curl -fsSL https://codeload.github.com/Foureveur/infra_partiqle_os/tar.gz/refs/heads/claude/infra-partiqle-dashboard-95azo6 \
+  | tar -xz -C /opt/studio-os/services/infra --strip-components=1 \
+  && cd /opt/studio-os && docker compose up -d --build infra'
+```
+
+Seul `data/` fait exception : les tables (liens, plateformes, machines, cartes)
+sont montées en lecture seule et relues à chaque requête. Ajouter un lien ne
+demande donc ni build ni redémarrage.
