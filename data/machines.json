@@ -4,7 +4,7 @@
     "role": "Socle studio : Caddy, Authelia, Studio OS, Roadmaps, NOMA, n8n, GlitchTip, Kuma, hub WP, MCP auto-hébergés",
     "shortRole": "Socle studio",
     "tier": "T1",
-    "hostingerId": null,
+    "hostingerId": 1374185,
     "expectedIp": "76.13.53.158"
   },
   {
@@ -12,23 +12,23 @@
     "role": "Production client (CPTS et suivants)",
     "shortRole": "Production client",
     "tier": "T1",
-    "hostingerId": null,
-    "expectedIp": null
+    "hostingerId": 1737148,
+    "expectedIp": "187.124.50.141"
   },
   {
     "id": "vps-saas-01",
     "role": "Produits SaaS (immomap, spacia…)",
     "shortRole": "Produits SaaS",
     "tier": "T2",
-    "hostingerId": null,
-    "expectedIp": null
+    "hostingerId": 1778582,
+    "expectedIp": "72.62.24.57"
   },
   {
     "id": "vps-lab",
     "role": "Atelier : migrations, scripts, travaux longs",
     "shortRole": "Atelier",
     "tier": "T3",
-    "hostingerId": null,
-    "expectedIp": null
+    "hostingerId": 1932525,
+    "expectedIp": "31.97.114.220"
   }
 ]

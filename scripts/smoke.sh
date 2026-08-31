@@ -192,6 +192,43 @@ console.log(((!j.sources.kuma.ok && kuma!==null)||(!j.sources.glitchtip.ok && gt
 [ "$GREEN" = "propre" ] && ok "une source en échec ne laisse filtrer aucune donnée « bonne »" \
   || ko "fuite de données d'une source en échec"
 
+# --------------------------------------------------- lecture des métriques
+# Deux fois de suite, un lecteur de métriques a rendu `null` sans rien dire —
+# GlitchTip d'abord, Hostinger ensuite. Un `null` silencieux ne se voit pas à
+# l'écran : la carte affiche « — » et on croit que la machine est calme. On
+# vérifie donc le parseur contre la forme RÉELLE relevée le 31/08.
+head2 "Métriques Hostinger — le parseur, contre la vraie forme"
+
+METRICS="$(node -e '
+const h = require("./src/collector/sources/hostinger");
+// Extrait littéral de la réponse de /metrics, vps-lab, 31/08.
+const body = {
+  cpu_usage:        { unit: "%",     usage: { "1788176751": 2.13, "1788171491": 1.73, "1788173310": 1.72 } },
+  outgoing_traffic: { unit: "bytes", usage: { "1788171491": 2889174, "1788176751": 2919529 } },
+};
+const out = [];
+// L ordre des cles d un objet JSON ne se decrete pas : le tri est sur la cle.
+out.push(h.latest(body.cpu_usage) === 2.13 ? "latest-ok" : "latest-KO");
+out.push(Math.abs(h.average(body.cpu_usage) - 1.86) < 0.01 ? "avg-ok" : "avg-KO");
+out.push(h.sum(body.outgoing_traffic) === 5808703 ? "sum-ok" : "sum-KO");
+// Absent, vide, ou mal forme : null franc, jamais 0 — un zero passerait pour
+// une mesure et ferait croire a une machine au repos.
+out.push(h.latest(undefined) === null && h.latest({}) === null && h.sum({usage:{}}) === null
+  ? "null-ok" : "null-KO");
+// Le hostname Hostinger est un FQDN : le comparer nu ne matchait jamais.
+const vms = [{ id: 1932525, hostname: "vps-lab.partiqle.studio", ipv4: [{ address: "31.97.114.220" }] }];
+out.push(h.matchVm(vms, { id: "vps-lab" }) ? "fqdn-ok" : "fqdn-KO");
+out.push(h.matchVm(vms, { id: "x", expectedIp: "31.97.114.220" }) ? "ip-ok" : "ip-KO");
+out.push(h.matchVm(vms, { id: "vps-autre" }) === undefined ? "nomatch-ok" : "nomatch-KO");
+console.log(out.join(" "));')"
+
+for CASE in $METRICS; do
+  case "$CASE" in
+    *-ok) ok "métriques : ${CASE%-ok}" ;;
+    *)    ko "métriques : $CASE" ;;
+  esac
+done
+
 # ------------------------------------------------------------------ secrets
 head2 "Secrets"
 

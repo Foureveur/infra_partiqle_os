@@ -253,19 +253,46 @@ d'autre n'est affecté.
 
 ## 6. Hostinger
 
-Renseigner `HOSTINGER_TOKEN`. Puis renseigner `hostingerId` dans
-`data/machines.json` si le rattachement automatique (par IP ou hostname) ne
-trouve pas les VM :
+Il ne reste qu'à renseigner `HOSTINGER_TOKEN` : les quatre `hostingerId` de
+`data/machines.json` ont été relevés le 31/08 contre l'API réelle, et le
+rattachement se fait aussi par IP ou par hostname si un identifiant change.
 
-```bash
-docker compose exec -T infra node -e "
-  fetch('https://developers.hostinger.com/api/vps/v1/virtual-machines',
-        {headers:{Authorization:'Bearer '+process.env.HOSTINGER_TOKEN}})
-    .then(r=>r.json()).then(d=>console.log(JSON.stringify(d,null,1)));"
+Le jeton se crée dans hPanel → *Compte* → *API* → *Générer un jeton*. La lecture
+seule suffit : le collecteur ne fait que des `GET`.
+
+### Ce que la source lit, et ce qu'elle ne lit pas
+
+`GET /api/vps/v1/virtual-machines/<id>/metrics` **exige** `date_from` et
+`date_to` — sans eux, pas de réponse. Le collecteur demande les 24 dernières
+heures. La réponse a cette forme :
+
+```jsonc
+{ "cpu_usage":        { "unit": "%",     "usage": { "<timestamp unix>": 52.76, … } },
+  "outgoing_traffic": { "unit": "bytes", "usage": { … } },
+  "ram_usage": …, "disk_space": …, "incoming_traffic": …, "uptime": … }
 ```
 
+`usage` est une **table timestamp → valeur**, pas une série `[[t, v]]`.
+L'ordre des clés d'un objet JSON ne se décrète pas : le lecteur trie.
+
+On n'en garde que deux choses :
+
+- **CPU** : la dernière valeur, plus la moyenne des 24 h. Seule la seconde rend
+  la première lisible — 52 %, ce n'est une anomalie que face à 8 % d'habitude.
+- **Trafic sortant** : la somme de la fenêtre. Ce compteur monte *et descend*
+  d'un relevé à l'autre : c'est un volume par intervalle, pas un cumul de quota.
+  Le rapporter au quota mensuel du plan serait une invention.
+
+Le disque, la RAM et l'uptime **ne sont pas repris** : la pousse de la machine
+les mesure déjà de l'intérieur, sur tous les volumes montés — ce que
+l'hyperviseur ne voit pas. Deux mesures du même fait finissent par diverger.
+
+En revanche `state` (l'avis de l'hyperviseur) est conservé, et c'est utile
+précisément quand la machine se tait : il ne la rend pas saine — elle reste
+inconnue — mais il tranche entre « VM éteinte » et « agent de pousse mort ».
+
 Les tables étant montées en lecture seule depuis
-`/opt/studio-os/services/infra/data`, il suffit d'éditer le fichier sur l'hôte —
+`/opt/studio-os/services/infra/data`, éditer `machines.json` sur l'hôte suffit —
 pas de reconstruction d'image, pas de redémarrage : le registre est relu à
 chaque requête.
 

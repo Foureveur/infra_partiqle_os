@@ -1,4 +1,4 @@
-import { esc, stat, bar, pct, duration, ago, usageSeverity, unknownBlock } from './util.js';
+import { esc, stat, bar, pct, bytes, duration, ago, usageSeverity, unknownBlock } from './util.js';
 
 function find(state, id) {
   return (state.machines || []).find((m) => m.id === id) || null;
@@ -27,6 +27,19 @@ export function render(spec, state) {
         { at: m?.reportedAt || null, error: m?.reportedAt ? 'aucune pousse récente' : 'aucune pousse reçue' },
         'Machine silencieuse'
       )}
+      ${
+        // L'avis de l'hyperviseur ne rend PAS la machine saine — elle reste
+        // inconnue — mais il tranche la seule question utile à cet instant :
+        // faut-il rallumer la VM, ou aller réparer l'agent qui s'est tu ?
+        m?.vmState
+          ? `<div class="d-mid"><p class="unknown-note" style="margin-top:8px"><span>Hostinger voit la VM
+             <span class="mono">${esc(m.vmState)}</span> — ${
+               m.vmState === 'running'
+                 ? "c'est donc l'agent de pousse qui ne parle plus, pas la machine qui est éteinte."
+                 : "la machine elle-même n'est pas en marche."
+             }</span></p></div>`
+          : ''
+      }
       <div class="d-expanded">
         <p class="stat__sub">Seuil : ${Math.round((state.thresholds?.machineStaleSeconds ?? 900) / 60)} min sans pousse ⇒ inconnue.
         Vérifier <span class="mono">infra-report.sh</span> et son cron sur cette machine.</p>
@@ -76,7 +89,27 @@ export function render(spec, state) {
         <li class="row"><span class="row__name">Dernière pousse</span><span class="row__value mono">${ago(m.reportedAgeSeconds)}</span></li>
         ${
           Number.isFinite(m.cpuPct)
-            ? `<li class="row"><span class="row__name">CPU (Hostinger)</span><span class="row__value mono">${pct(m.cpuPct)}</span></li>`
+            ? `<li class="row">
+                 <span class="row__name">CPU (Hostinger)</span>
+                 <span class="row__value mono" data-severity="${
+                   // Une CPU élevée n'est alarmante que rapportée à l'habitude
+                   // de la machine : trois fois sa moyenne du jour, et au moins
+                   // 40 %, c'est un changement de régime — pas un pic.
+                   Number.isFinite(m.cpuAvg24h) && m.cpuAvg24h > 0 && m.cpuPct >= 40 && m.cpuPct > m.cpuAvg24h * 3
+                     ? 'warn'
+                     : ''
+                 }">${pct(m.cpuPct)}</span>
+                 ${
+                   Number.isFinite(m.cpuAvg24h)
+                     ? `<span class="stat__sub">moy. 24 h ${pct(m.cpuAvg24h)}</span>`
+                     : ''
+                 }
+               </li>`
+            : ''
+        }
+        ${
+          Number.isFinite(m.outgoingBytes24h)
+            ? `<li class="row"><span class="row__name">Trafic sortant 24 h</span><span class="row__value mono">${bytes(m.outgoingBytes24h)}</span></li>`
             : ''
         }
       </ul>

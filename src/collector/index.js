@@ -78,7 +78,16 @@ function blocksFromState(previous) {
       metrics: Object.fromEntries(
         (previous.machines || [])
           .filter((m) => m.cpuPct !== undefined && m.cpuPct !== null)
-          .map((m) => [m.id, { cpuPct: m.cpuPct, bandwidth: m.bandwidth ?? null }])
+          .map((m) => [
+            m.id,
+            {
+              cpuPct: m.cpuPct,
+              cpuAvg24h: m.cpuAvg24h ?? null,
+              outgoingBytes24h: m.outgoingBytes24h ?? null,
+              vmState: m.vmState ?? null,
+              hostingerId: m.hostingerId ?? null,
+            },
+          ])
       ),
     },
   };
@@ -163,11 +172,27 @@ async function run() {
 
     const machines = blocks.machines?.machines || [];
     const hostingerMetrics = blocks.hostinger?.metrics || {};
+
+    // Une machine qui n'a JAMAIS poussé n'est pas dans machines[] — or c'est
+    // exactement celle dont on aimerait savoir si l'hyperviseur la voit tourner.
+    // On lui crée donc une entrée nue : sans `reportedAt`, elle reste
+    // silencieuse et donc INCONNUE, mais elle peut enfin dire « la VM tourne,
+    // c'est l'agent qui ne parle plus » plutôt que rien du tout.
+    for (const [id, extra] of Object.entries(hostingerMetrics)) {
+      if (!machines.some((m) => m.id === id)) machines.push({ id, reportedAt: null });
+    }
+
     for (const machine of machines) {
       const extra = hostingerMetrics[machine.id];
       if (extra) {
+        // Les métriques Hostinger COMPLÈTENT la pousse de la machine, elles ne
+        // la remplacent pas : disque, RAM et uptime restent ceux mesurés de
+        // l'intérieur, qui voient tous les volumes montés.
         machine.cpuPct = extra.cpuPct;
-        machine.bandwidth = extra.bandwidth;
+        machine.cpuAvg24h = extra.cpuAvg24h;
+        machine.outgoingBytes24h = extra.outgoingBytes24h;
+        machine.vmState = extra.vmState;
+        machine.hostingerId = extra.hostingerId;
       }
     }
 
