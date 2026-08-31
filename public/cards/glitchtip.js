@@ -7,7 +7,13 @@ export function summary(spec, state) {
 
   const total = gt.unresolvedTotal ?? 0;
   const severity = gt.surge ? 'danger' : total > 0 ? 'warn' : 'ok';
-  return { severity, meta: `${total}`, title: gt.surge ? 'Flambée sur 24 h' : '' };
+  return {
+    severity,
+    meta: `${total}`,
+    title: gt.surge
+      ? 'Flambée : plus de deux fois le rythme de la semaine'
+      : gt.active24h ? `${gt.active24h} issue(s) réveillée(s) dans les 24 h` : '',
+  };
 }
 
 export function render(spec, state) {
@@ -26,13 +32,21 @@ export function render(spec, state) {
     <div class="d-mid">
       <div class="stat-row">
         ${stat('Non résolues', String(gt.unresolvedTotal ?? 0), { severity: gt.unresolvedTotal ? 'warn' : 'ok' })}
-        ${stat('24 h', String(gt.count24h ?? '—'), { severity: gt.surge ? 'danger' : undefined })}
-        ${stat('7 j', String(gt.count7d ?? '—'))}
+        ${stat('Actives 24 h', String(gt.active24h ?? '—'), {
+          severity: gt.surge ? 'danger' : gt.active24h ? 'warn' : 'ok',
+          sub: gt.eventsOnActive24h ? `${gt.eventsOnActive24h} évén. cumulés` : '',
+        })}
+        ${stat('Actives 7 j', String(gt.active7d ?? '—'))}
       </div>
+      ${
+        gt.truncated
+          ? '<p class="unknown-note" style="margin-top:8px"><span>Plus de 100 issues non résolues : la liste est tronquée, le total est un plancher.</span></p>'
+          : ''
+      }
       ${
         gt.surge
           ? `<p style="margin-top:8px"><span class="tag" data-severity="danger">flambée</span>
-             <span class="stat__sub">les 24 h pèsent ${gt.surgeRatio ? gt.surgeRatio.toFixed(1) : '—'}× la moyenne des 7 jours</span></p>`
+             <span class="stat__sub">${gt.surgeRatio ? gt.surgeRatio.toFixed(1) : '—'}× le rythme quotidien de la semaine</span></p>`
           : ''
       }
     </div>
@@ -78,6 +92,10 @@ export function render(spec, state) {
                .join('')}</ul>`
           : emptyLine('Rien à afficher.')
       }
-      <p class="stat__sub" style="margin-top:8px">Collecté ${ago(src.ageSeconds)}.</p>
+      <p class="stat__sub" style="margin-top:8px">
+        Collecté ${ago(src.ageSeconds)}. « Actives » compte les issues dont le dernier
+        événement tombe dans la fenêtre — GlitchTip n'expose pas de série temporelle
+        permettant de compter les événements eux-mêmes.
+      </p>
     </div>`;
 }

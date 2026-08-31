@@ -5,25 +5,28 @@ const { fetchJson } = require('../fetch');
 
 /**
  * GlitchTip — issues non résolues de l'organisation (§3.7).
- * Le comparatif 24 h / 7 j sert à détecter une flambée : ce n'est pas le nombre
- * d'issues qui compte, c'est son accélération.
+ *
+ * Ce que l'API donne RÉELLEMENT, vérifié contre l'instance le 31/08 : chaque
+ * issue porte `count` (total d'événements depuis toujours), `firstSeen` et
+ * `lastSeen`. Le champ `stats` n'a qu'une clé `24h`, et elle revient VIDE quel
+ * que soit `statsPeriod` — GlitchTip n'implémente pas les séries temporelles de
+ * Sentry.
+ *
+ * La première version comptait donc des événements par fenêtre à partir de ces
+ * séries : elle affichait zéro en permanence, sans jamais dire pourquoi. On
+ * compte désormais des ISSUES ACTIVES par fenêtre, d'après `lastSeen`. C'est
+ * mesurable, et c'est même plus parlant sur un tableau de bord : dix issues qui
+ * n'ont pas bougé depuis une semaine, ce n'est pas la même chose que trois qui
+ * se réveillent aujourd'hui.
  */
 
-function sumSeries(series, sinceMs) {
-  if (!Array.isArray(series)) return 0;
-  return series.reduce((total, point) => {
-    if (!Array.isArray(point) || point.length < 2) return total;
-    const [ts, count] = point;
-    if (sinceMs && ts * 1000 < sinceMs) return total;
-    return total + (Number(count) || 0);
-  }, 0);
-}
+const PAGE_LIMIT = 100;
 
-async function issues(statsPeriod) {
+async function fetchIssues() {
   const base = config.glitchtip.baseUrl.replace(/\/$/, '');
   const url =
     `${base}/api/0/organizations/${encodeURIComponent(config.glitchtip.org)}/issues/` +
-    `?query=${encodeURIComponent('is:unresolved')}&statsPeriod=${statsPeriod}&limit=100`;
+    `?query=${encodeURIComponent('is:unresolved')}&limit=${PAGE_LIMIT}`;
   const data = await fetchJson(url, {
     headers: { Authorization: `Bearer ${config.glitchtip.token}`, Accept: 'application/json' },
     timeoutMs: 10_000,
@@ -37,21 +40,23 @@ async function collect() {
     throw new Error('GLITCHTIP_ORG ou GLITCHTIP_TOKEN absent');
   }
 
-  // Deux fenêtres : l'API Sentry/GlitchTip n'expose que les séries « 24h » et
-  // « 14d ». Les 7 jours se déduisent de la seconde.
-  const [day, fortnight] = await Promise.all([issues('24h'), issues('14d')]);
+  const issues = await fetchIssues();
+  const now = Date.now();
+  const seenWithin = (iso, ms) => {
+    const t = Date.parse(iso || '');
+    return Number.isFinite(t) && now - t <= ms;
+  };
 
-  const sevenDaysAgo = Date.now() - 7 * 86400_000;
-  const count24h = day.reduce((n, i) => n + sumSeries(i.stats && i.stats['24h']), 0);
-  const count7d = fortnight.reduce((n, i) => n + sumSeries(i.stats && i.stats['14d'], sevenDaysAgo), 0);
+  const active24h = issues.filter((i) => seenWithin(i.lastSeen, 86_400_000));
+  const active7d = issues.filter((i) => seenWithin(i.lastSeen, 7 * 86_400_000));
 
   const perProject = new Map();
-  for (const issue of day) {
+  for (const issue of issues) {
     const project = issue.project?.slug || issue.project?.name || 'inconnu';
     perProject.set(project, (perProject.get(project) || 0) + 1);
   }
 
-  const recent = [...day]
+  const recent = [...issues]
     .sort((a, b) => Date.parse(b.lastSeen || 0) - Date.parse(a.lastSeen || 0))
     .slice(0, 5)
     .map((i) => ({
@@ -62,16 +67,26 @@ async function collect() {
       url: i.permalink || i.webUrl || null,
     }));
 
-  const dailyAverage = count7d / 7;
+  // Une flambée, c'est deux fois le rythme de la semaine — et seulement à
+  // partir d'un volume qui veut dire quelque chose. Sans ce plancher, passer
+  // de zéro à une issue déclencherait une alerte tous les jours.
+  const dailyAverage = active7d.length / 7;
+  const surge = active24h.length >= 3 && dailyAverage > 0 && active24h.length > dailyAverage * 2;
+
   return {
-    unresolvedTotal: day.length,
-    count24h,
-    count7d,
-    // Une flambée, c'est deux fois la moyenne quotidienne de la semaine — et
-    // seulement si le volume est significatif, sinon 1 erreur au lieu de 0
-    // déclencherait une alerte tous les jours.
-    surge: count24h >= 10 && dailyAverage > 0 && count24h > dailyAverage * 2,
-    surgeRatio: dailyAverage > 0 ? count24h / dailyAverage : null,
+    unresolvedTotal: issues.length,
+    active24h: active24h.length,
+    active7d: active7d.length,
+    // Volume d'événements des issues réveillées dans les 24 h. C'est le total
+    // de CHAQUE issue depuis sa création, pas son volume des 24 h : GlitchTip
+    // ne sait pas le donner. Affiché comme un ordre de grandeur, jamais comme
+    // un décompte de la fenêtre.
+    eventsOnActive24h: active24h.reduce((n, i) => n + (Number(i.count) || 0), 0),
+    surge,
+    surgeRatio: dailyAverage > 0 ? active24h.length / dailyAverage : null,
+    // Au-delà de 100 issues, la liste est tronquée : on le dit plutôt que de
+    // laisser croire que le total est complet.
+    truncated: issues.length >= PAGE_LIMIT,
     perProject: [...perProject.entries()]
       .map(([project, count]) => ({ project, count }))
       .sort((a, b) => b.count - a.count),
