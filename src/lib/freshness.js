@@ -129,13 +129,17 @@ function decorateBackups(state, sourceOk, now) {
   });
 }
 
-function decorateDeadlines(state, sourceOk, now) {
+function decorateDeadlines(state, roadmapsOk, now) {
   return (state.deadlines || [])
     .map((d) => {
       const days = daysUntil(d.date, now);
       const registrar = d.kind === 'registrar';
+      // Une entrée de la table du dépôt est toujours fiable : elle ne dépend
+      // d'aucune collecte. Seuls les jalons venus de Roadmaps deviennent
+      // inconnus quand cette source échoue.
+      const trusted = d.origin === 'table' || roadmapsOk;
       let severity;
-      if (!sourceOk) severity = 'unknown';
+      if (!trusted) severity = 'unknown';
       else if (days === null) severity = 'unknown';
       else if (days < 0) severity = 'danger';
       else if (days <= (registrar ? 30 : 7)) severity = registrar ? 'danger' : 'warn';

@@ -26,10 +26,34 @@ function platformsWithReview(now) {
   });
 }
 
+/**
+ * Échéances : table du dépôt + jalons remontés par Roadmaps.
+ *
+ * La table existe parce que les expirations de domaine sont la classe la plus
+ * dangereuse — une date manquée est irréversible (§3.6) — et qu'elles ne
+ * peuvent pas attendre que /api/infra/summary soit construit côté Roadmaps.
+ * Chaque entrée garde son origine : une entrée de table reste fiable quand la
+ * source Roadmaps est en échec, une entrée Roadmaps devient inconnue.
+ */
+function mergedDeadlines(raw) {
+  const table = readJsonSync(path.join(config.tablesDir, 'deadlines.json'), null);
+  const fromTable = (table?.deadlines || []).map((d) => ({ ...d, origin: 'table' }));
+  const fromRoadmaps = (raw?.deadlines || []).map((d) => ({ ...d, origin: 'roadmaps' }));
+
+  const seen = new Set();
+  return [...fromTable, ...fromRoadmaps].filter((d) => {
+    const key = `${d.date}|${d.label}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 async function handleState(req, res, registry) {
   const now = Date.now();
   const raw = await readJson(path.join(config.dataDir, 'state.json'), null);
-  const state = decorate(raw, registry, now);
+  if (raw) raw.deadlines = mergedDeadlines(raw);
+  const state = decorate(raw ? raw : { deadlines: mergedDeadlines(null) }, registry, now);
 
   state.platforms = platformsWithReview(now);
   state.links = readJsonSync(path.join(config.tablesDir, 'links.json'), { groups: [] });

@@ -50,8 +50,33 @@ UPTIME_V="$(cut -d. -f1 /proc/uptime 2>/dev/null || echo '')"
 read -r LOAD1 LOAD5 LOAD15 _ < /proc/loadavg 2>/dev/null || { LOAD1=''; LOAD5=''; LOAD15=''; }
 
 MEM_PCT="$(free -b 2>/dev/null | awk '/^Mem:/{ if ($2>0) printf "%.1f", ($2-$7)*100/$2 }')"
-DISK_PCT="$(df -P / 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5); print $5}')"
-DISK_FREE_GB="$(df -P / 2>/dev/null | awk 'NR==2{printf "%.1f", $4/1048576}')"
+
+# Disque : TOUS les systèmes de fichiers réels, pas seulement la racine.
+# Ne regarder que « / » est une jauge qui ment — une machine dont la racine est
+# à 6 % et le volume de données à 60 % s'affiche en vert alors qu'elle se
+# remplit. On remonte la liste, et on retient le PLUS REMPLI comme valeur de
+# tête, avec le point de montage qui la porte.
+#
+# Filtre : uniquement les vrais périphériques bloc (/dev/…), plus zfs. Exclut
+# tmpfs, overlay (les couches Docker, comptées deux fois sinon), squashfs
+# (les snaps). Dédoublonné par périphérique : un bind mount ne compte qu'une fois.
+DF_RAW="$(df -PT 2>/dev/null)"
+DF_FILTER='NR>1 && ($1 ~ /^\/dev\// || $2=="zfs") && $2!="squashfs" && $2!="overlay" && !seen[$1]++'
+
+FILESYSTEMS_JSON="$(printf '%s\n' "$DF_RAW" | awk "$DF_FILTER"' {
+    pct=$6; gsub(/%/,"",pct);
+    printf "%s{\"mount\":\"%s\",\"type\":\"%s\",\"pct\":%s,\"freeGB\":%.1f,\"sizeGB\":%.1f}", \
+      (n++?",":""), $7, $2, pct, $5/1048576, $3/1048576
+  }')"
+FILESYSTEMS_JSON="[${FILESYSTEMS_JSON}]"
+
+# Le plus rempli fait la valeur de tête.
+read -r DISK_PCT DISK_FREE_GB DISK_MOUNT <<EOF
+$(printf '%s\n' "$DF_RAW" | awk "$DF_FILTER"' {
+    pct=$6; gsub(/%/,"",pct);
+    if (pct+0 >= worst+0) { worst=pct; free=$5/1048576; mount=$7 }
+  } END { if (mount != "") printf "%s %.1f %s", worst, free, mount }')
+EOF
 
 REBOOT_REQUIRED=false
 [ -f /var/run/reboot-required ] && REBOOT_REQUIRED=true
@@ -134,6 +159,8 @@ PAYLOAD="$(cat <<JSON
     "memPct": $(num "$MEM_PCT"),
     "diskPct": $(num "$DISK_PCT"),
     "diskFreeGB": $(num "$DISK_FREE_GB"),
+    "diskMount": $([ -n "${DISK_MOUNT:-}" ] && q "$DISK_MOUNT" || printf 'null'),
+    "filesystems": $FILESYSTEMS_JSON,
     "containers": { "running": $(num "$CONTAINERS_RUNNING"), "total": $(num "$CONTAINERS_TOTAL") },
     "containersUnhealthy": $UNHEALTHY_JSON,
     "rebootRequired": $REBOOT_REQUIRED,

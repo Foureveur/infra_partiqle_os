@@ -45,7 +45,15 @@ export function render(spec, state) {
 
     <div class="d-mid">
       <div class="stat-row">
-        ${stat('Disque', pct(m.diskPct), { severity: disk, sub: Number.isFinite(m.diskFreeGB) ? `${m.diskFreeGB} Go libres` : '' })}
+        ${stat('Disque', pct(m.diskPct), {
+          severity: disk,
+          // Le montage n'est affiché que s'il n'est pas la racine : sinon c'est
+          // du bruit, et quand il l'est, c'est l'information qui manque.
+          sub: [
+            Number.isFinite(m.diskFreeGB) ? `${m.diskFreeGB} Go libres` : '',
+            m.diskMount && m.diskMount !== '/' ? `sur ${m.diskMount}` : '',
+          ].filter(Boolean).join(' · '),
+        })}
         ${stat('Mémoire', pct(m.memPct), { severity: mem })}
         ${stat('Charge', m.load ? m.load[0].toFixed(2) : '—', { sub: m.load ? m.load.slice(1).map((v) => v.toFixed(2)).join(' · ') : '' })}
         ${stat('Conteneurs', `${m.containers?.running ?? '—'}<span class="stat__sub">/${m.containers?.total ?? '—'}</span>`, {
@@ -86,6 +94,18 @@ export function render(spec, state) {
       ${
         !m.dockerAvailable
           ? '<p style="margin:8px 0 0"><span class="tag" data-severity="unknown">docker non interrogeable</span></p>'
+          : ''
+      }
+      ${
+        (m.filesystems || []).length > 1
+          ? `<p class="group-label">Volumes</p>
+             <ul class="rows">${m.filesystems
+               .slice()
+               .sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0))
+               .map((f) => `<li class="row"><span class="row__name mono">${esc(f.mount)}</span>
+                  <span class="row__value">${f.sizeGB} Go</span>
+                  <span class="tag" data-severity="${usageSeverity(f.pct)}">${pct(f.pct)}</span></li>`)
+               .join('')}</ul>`
           : ''
       }
     </div>`;

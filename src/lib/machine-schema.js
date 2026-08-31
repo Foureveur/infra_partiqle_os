@@ -12,6 +12,7 @@
 const MAX_SERVICES = 500;
 const MAX_UNHEALTHY = 100;
 const MAX_BANS = 20;
+const MAX_FILESYSTEMS = 20;
 const STATES = new Set(['running', 'exited', 'restarting', 'created', 'paused', 'dead', 'removing']);
 const HEALTHS = new Set(['healthy', 'unhealthy', 'starting', 'none']);
 
@@ -119,6 +120,17 @@ function normalizeReport(raw, machineId) {
       memPct: num(m.memPct, 0, 100),
       diskPct: num(m.diskPct, 0, 100),
       diskFreeGB: num(m.diskFreeGB, 0, 1e7),
+      // Point de montage porteur du taux ci-dessus : ce n'est pas forcément /.
+      diskMount: str(m.diskMount, 200),
+      filesystems: Array.isArray(m.filesystems)
+        ? m.filesystems.slice(0, MAX_FILESYSTEMS).map((f) => (f && typeof f === 'object' ? {
+            mount: str(f.mount, 200),
+            type: str(f.type, 30),
+            pct: num(f.pct, 0, 100),
+            freeGB: num(f.freeGB, 0, 1e7),
+            sizeGB: num(f.sizeGB, 0, 1e7),
+          } : null)).filter((f) => f && f.mount)
+        : [],
       containers,
       containersUnhealthy: unhealthy,
       rebootRequired: bool(m.rebootRequired) ?? false,

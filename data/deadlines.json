@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "Échéances tenues à la main, en complément de celles que Roadmaps remontera",
+    "via /api/infra/summary. Même statut que platforms.json : une table du dépôt,",
+    "éditable, montée en lecture seule et relue à chaque requête.",
+    "",
+    "Pourquoi cette table existe : les expirations de domaine sont la classe la",
+    "plus dangereuse — une date manquée est irréversible (§3.6). Les faire",
+    "dépendre d'un endpoint qui n'est pas encore construit reviendrait à ne pas",
+    "les surveiller du tout en attendant.",
+    "",
+    "Les entrées Roadmaps s'ajoutent à celles-ci ; les doublons (même date, même",
+    "libellé) sont fusionnés. kind: registrar déclenche le seuil d'alerte à J-30",
+    "et la remontée dans le bandeau du haut."
+  ],
+  "verifiedAt": "2026-08-31",
+  "deadlines": [
+    { "date": "2026-10-11", "label": "Expiration altais-montreuil.fr", "kind": "registrar", "project": null },
+    { "date": "2026-11-23", "label": "Expiration plan Business Hostinger", "kind": "registrar", "project": null },
+    { "date": "2026-09-05", "label": "SiteGround — renouvellement automatique", "kind": "milestone", "project": "Rationalisation Infra Partiqle" },
+    { "date": "2026-09-11", "label": "Core isolé", "kind": "milestone", "project": "Rationalisation Infra Partiqle" },
+    { "date": "2026-09-16", "label": "Parc WP 100 % managé", "kind": "milestone", "project": "Parc WordPress managé" },
+    { "date": "2026-09-18", "label": "Backups testés", "kind": "milestone", "project": "Rationalisation Infra Partiqle" },
+    { "date": "2026-10-05", "label": "FIN SITEGROUND", "kind": "milestone", "project": "Rationalisation Infra Partiqle" },
+    { "date": "2026-10-09", "label": "Agent d’infra", "kind": "milestone", "project": "Rationalisation Infra Partiqle" },
+    { "date": "2026-10-15", "label": "Messagerie hollow.immo", "kind": "milestone", "project": null },
+    { "date": "2026-11-06", "label": "Mise en ligne de infra.partiqle.studio", "kind": "milestone", "project": "Rationalisation Infra Partiqle" }
+  ]
+}
