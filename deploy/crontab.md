@@ -88,6 +88,37 @@ ssh vps-core 'curl -fsSL https://codeload.github.com/Foureveur/infra_partiqle_os
   && cd /opt/studio-os && docker compose up -d --build infra'
 ```
 
+### L'agent de pousse ne suit PAS ce rafraîchissement
+
+Même piège, un cran plus loin, et il s'est déjà refermé une fois (31/08 : les
+sauvegardes sont restées « veilleur non greffé » alors que la greffe était
+posée). `install-agent.sh` **copie** `infra-report.sh` vers `/usr/local/bin/` ;
+c'est cette copie que le cron exécute. Mettre à jour le dépôt sur `vps-core` ne
+met à jour aucun des quatre agents.
+
+Après toute modification de `deploy/infra-report.sh`, réinstaller partout :
+
+```bash
+# vps-core (le dépôt est déjà à jour sur cette machine)
+ssh vps-core 'install -m 0755 /opt/studio-os/services/infra/deploy/infra-report.sh /usr/local/bin/infra-report.sh && /usr/local/bin/infra-report.sh'
+
+# les trois autres
+for M in vps-saas-01 vps-clients-01 vps-lab; do
+  ssh vps-core 'tar -C /opt/studio-os/services/infra/deploy -cz infra-report.sh' \
+    | ssh "$M" 'tar -xz -C /tmp && install -m 0755 /tmp/infra-report.sh /usr/local/bin/infra-report.sh && /usr/local/bin/infra-report.sh'
+done
+```
+
+`AGENT_VERSION` remonte dans `state.json` (`machines[].agentVersion`) : c'est là
+qu'on voit une machine restée en arrière.
+
+```bash
+docker compose exec -T infra node -e "
+  require('/app/var/state.json').machines.forEach(m=>console.log(m.id, m.agentVersion||'—'));"
+```
+
+### Ce qui, lui, ne demande rien
+
 Seul `data/` fait exception : les tables (liens, plateformes, machines, cartes)
 sont montées en lecture seule et relues à chaque requête. Ajouter un lien ne
 demande donc ni build ni redémarrage.
