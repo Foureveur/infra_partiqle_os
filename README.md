@@ -66,17 +66,32 @@ sert un fichier. Le navigateur non plus n'appelle aucune API tierce : la
 politique de sécurité du contenu (`connect-src 'self'`) le garantit
 mécaniquement, pas seulement par discipline d'écriture.
 
-## Développement
+## Le voir tourner en local
+
+Aucune dépendance à installer, aucun jeton, aucun Docker. Node 20 ou plus suffit.
 
 ```bash
-npm run demo     # écrit un state.json de démonstration (volontairement bancal)
-INFRA_DATA_DIR=/tmp/infra-data INFRA_DEV_USER=quentin npm start
-npm run smoke    # la recette automatisable
+git clone https://github.com/Foureveur/infra_partiqle_os.git
+cd infra_partiqle_os
+git checkout claude/infra-partiqle-dashboard-95azo6
+
+npm run demo     # écrit un état de démonstration dans ./var
+npm run dev      # http://localhost:3000
 ```
 
-`INFRA_DEV_USER` remplace l'en-tête `Remote-User` que pousse Authelia en
-production. **Le laisser vide en production** : sans lui et sans Authelia,
-`/api/layout` répond 401 plutôt que de servir la disposition de quelqu'un.
+Puis : bouton **Organiser** en haut à droite, déplacer une carte par son
+en-tête, la redimensionner par le coin bas-droite, replier par le chevron,
+masquer par la croix. Recharger : tout est retrouvé. C'est le serveur qui garde
+la disposition, dans `./var/layout.local.json`.
+
+```bash
+npm run smoke    # la recette automatisable — 27 assertions
+```
+
+`npm run dev` fixe `INFRA_DEV_USER`, qui remplace l'en-tête `Remote-User` que
+pousse Authelia en production. **Le laisser vide en production** : sans lui et
+sans Authelia, `/api/layout` répond 401 plutôt que de servir la disposition de
+quelqu'un. `npm start` est la commande de production, sans ce contournement.
 
 L'état de démonstration est volontairement bancal — une source en échec, une
 machine silencieuse, un conteneur qui redémarre en boucle, une sauvegarde en

@@ -10,9 +10,13 @@
   "scripts": {
     "start": "node src/server.js",
     "collect": "node src/collector/index.js",
-    "demo": "node scripts/demo-state.js",
     "smoke": "bash scripts/smoke.sh",
-    "vendor": "bash scripts/vendor.sh"
+    "vendor": "bash scripts/vendor.sh",
+
+    "//": "Ci-dessous : usage local uniquement. ./var au lieu de /app/var, et un utilisateur fictif à la place de l'en-tête Remote-User que pousse Authelia en production.",
+    "demo": "INFRA_DATA_DIR=./var node scripts/demo-state.js",
+    "dev": "INFRA_DATA_DIR=./var INFRA_DEV_USER=local PORT=3000 node src/server.js",
+    "dev:collect": "INFRA_DATA_DIR=./var node src/collector/index.js"
   },
   "dependencies": {}
 }
