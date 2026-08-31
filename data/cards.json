@@ -1,0 +1,119 @@
+{
+  "_comment": [
+    "Registre des cartes. Sert à deux choses : construire la disposition par défaut,",
+    "et valider les PUT /api/layout (un id inconnu est refusé).",
+    "Les cartes machines.<id> ne sont PAS listées ici : elles sont dérivées de",
+    "data/machines.json par src/lib/cards.js, pour que le tier d'une machine ne soit",
+    "déclaré qu'à un seul endroit.",
+    "Pas de x/y : à la première ouverture, GridStack empile dans l'ordre 'order' et",
+    "tasse en haut à gauche. La disposition par défaut est donc déjà juste, et le",
+    "réglage manuel devient de l'ajustement (§5.3)."
+  ],
+
+  "tierWidth": { "T1": 6, "T2": 4, "T3": 3 },
+
+  "machineCard": { "h": 5, "minW": 3, "minH": 2, "orderBase": 30 },
+
+  "cards": [
+    {
+      "id": "deadlines",
+      "title": "Échéances",
+      "type": "deadlines",
+      "tier": "T1",
+      "source": "roadmaps",
+      "h": 11,
+      "minW": 3,
+      "minH": 2,
+      "order": 10,
+      "hint": "Les expirations de domaine sont irréversibles : elles passent en tête."
+    },
+    {
+      "id": "incidents.kuma",
+      "title": "Disponibilité",
+      "type": "kuma",
+      "tier": "T1",
+      "source": "kuma",
+      "h": 8,
+      "minW": 3,
+      "minH": 2,
+      "order": 20
+    },
+    {
+      "id": "backups",
+      "title": "Sauvegardes",
+      "type": "backups",
+      "tier": "T1",
+      "source": "backups",
+      "h": 6,
+      "minW": 3,
+      "minH": 2,
+      "order": 40
+    },
+    {
+      "id": "incidents.glitchtip",
+      "title": "Erreurs applicatives",
+      "type": "glitchtip",
+      "tier": "T2",
+      "source": "glitchtip",
+      "h": 6,
+      "minW": 3,
+      "minH": 2,
+      "order": 50
+    },
+    {
+      "id": "incidents.crowdsec",
+      "title": "CrowdSec",
+      "type": "crowdsec",
+      "tier": "T3",
+      "source": "machines",
+      "h": 5,
+      "minW": 3,
+      "minH": 2,
+      "order": 60
+    },
+    {
+      "id": "projects",
+      "title": "Projets",
+      "type": "projects",
+      "tier": "T1",
+      "source": "roadmaps",
+      "h": 8,
+      "minW": 3,
+      "minH": 2,
+      "order": 70
+    },
+    {
+      "id": "services",
+      "title": "Conteneurs",
+      "type": "services",
+      "tier": "T1",
+      "source": "machines",
+      "h": 10,
+      "minW": 3,
+      "minH": 2,
+      "order": 80
+    },
+    {
+      "id": "platforms",
+      "title": "Plateformes",
+      "type": "platforms",
+      "tier": "T2",
+      "source": "static",
+      "h": 8,
+      "minW": 3,
+      "minH": 2,
+      "order": 90
+    },
+    {
+      "id": "launcher",
+      "title": "Aller travailler",
+      "type": "launcher",
+      "tier": "T1",
+      "source": "static",
+      "h": 10,
+      "minW": 3,
+      "minH": 2,
+      "order": 100
+    }
+  ]
+}

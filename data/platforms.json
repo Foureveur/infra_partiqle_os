@@ -1,0 +1,82 @@
+[
+  {
+    "id": "hostinger-mutualise",
+    "name": "Hostinger mutualisé",
+    "detail": "Plan h5g Agency — 7 sites",
+    "kind": "hébergement",
+    "url": "https://hpanel.hostinger.com/",
+    "status": "actif",
+    "note": "Plan Business : expiration 23/11/2026",
+    "verifiedAt": "2026-08-31"
+  },
+  {
+    "id": "hostinger-vps",
+    "name": "Hostinger VPS",
+    "detail": "4 machines : core, saas-01, clients-01, lab",
+    "kind": "hébergement",
+    "url": "https://hpanel.hostinger.com/vps",
+    "status": "actif",
+    "note": null,
+    "verifiedAt": "2026-08-31"
+  },
+  {
+    "id": "siteground",
+    "name": "SiteGround",
+    "detail": "En sortie",
+    "kind": "hébergement",
+    "url": "https://login.siteground.com/",
+    "status": "sortie",
+    "note": "Échéance de sortie : 05/10/2026",
+    "verifiedAt": "2026-08-31"
+  },
+  {
+    "id": "webflow",
+    "name": "Webflow",
+    "detail": "Sites vitrines",
+    "kind": "plateforme",
+    "url": "https://webflow.com/dashboard",
+    "status": "actif",
+    "note": null,
+    "verifiedAt": "2026-08-31"
+  },
+  {
+    "id": "lovable",
+    "name": "Lovable",
+    "detail": "Prototypes applicatifs",
+    "kind": "plateforme",
+    "url": "https://lovable.dev/",
+    "status": "actif",
+    "note": null,
+    "verifiedAt": "2026-08-31"
+  },
+  {
+    "id": "vercel",
+    "name": "Vercel",
+    "detail": "Déploiements front",
+    "kind": "plateforme",
+    "url": "https://vercel.com/dashboard",
+    "status": "actif",
+    "note": null,
+    "verifiedAt": "2026-08-31"
+  },
+  {
+    "id": "cloudflare",
+    "name": "Cloudflare",
+    "detail": "Zones à venir",
+    "kind": "dns",
+    "url": "https://dash.cloudflare.com/",
+    "status": "prévu",
+    "note": "Aucune zone migrée à ce jour",
+    "verifiedAt": "2026-08-31"
+  },
+  {
+    "id": "registrars",
+    "name": "OVH / EPAG / Tucows",
+    "detail": "Registrars — noms de domaine",
+    "kind": "registrar",
+    "url": "https://www.ovh.com/manager/",
+    "status": "actif",
+    "note": "Les expirations de domaine sont irréversibles : voir la carte Échéances",
+    "verifiedAt": "2026-08-31"
+  }
+]

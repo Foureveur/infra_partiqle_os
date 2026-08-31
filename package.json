@@ -1,0 +1,18 @@
+{
+  "name": "infra-partiqle-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tableau de bord interne infra.partiqle.studio — agrège Kuma, GlitchTip, Roadmaps, Hostinger et la pousse des VPS",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "collect": "node src/collector/index.js",
+    "demo": "node scripts/demo-state.js",
+    "smoke": "bash scripts/smoke.sh",
+    "vendor": "bash scripts/vendor.sh"
+  },
+  "dependencies": {}
+}

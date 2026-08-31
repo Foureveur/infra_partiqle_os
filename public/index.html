@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fr" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>infra.partiqle.studio</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/vendor/fonts/bricolage-1.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/vendor/gridstack/gridstack.min.css">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__identity">
+    <span class="topbar__mark" aria-hidden="true"></span>
+    <h1 class="topbar__title">infra<span class="topbar__title-dim">.partiqle.studio</span></h1>
+    <p id="freshness" class="freshness" data-state="unknown">
+      <span class="freshness__dot" aria-hidden="true"></span>
+      <span id="freshness-text">chargement…</span>
+    </p>
+  </div>
+
+  <div class="topbar__actions">
+    <span id="save-indicator" class="save-indicator" role="status" aria-live="polite"></span>
+    <button id="btn-drawer" class="btn" type="button" aria-expanded="false" hidden>
+      Cartes masquées <span id="drawer-count" class="btn__count">0</span>
+    </button>
+    <button id="btn-reset" class="btn" type="button" hidden>Réinitialiser</button>
+    <button id="btn-edit" class="btn btn--accent" type="button" aria-pressed="false">Organiser</button>
+    <button id="btn-theme" class="btn btn--icon" type="button" title="Thème" aria-label="Changer de thème">◐</button>
+  </div>
+</header>
+
+<!-- Bandeau du haut : ce qui est cassé maintenant. Un incident T1 y remonte. -->
+<section id="alerts" class="alerts" aria-label="Alertes" hidden></section>
+
+<main>
+  <div class="grid-stack" id="grid"></div>
+  <p id="empty-note" class="empty-note" hidden>
+    Toutes les cartes sont masquées. Ouvrez le tiroir « Cartes masquées » pour en ramener une.
+  </p>
+</main>
+
+<aside id="drawer" class="drawer" hidden aria-label="Cartes masquées">
+  <div class="drawer__head">
+    <h2>Cartes masquées</h2>
+    <button id="drawer-close" class="btn btn--icon" type="button" aria-label="Fermer">✕</button>
+  </div>
+  <ul id="drawer-list" class="drawer__list"></ul>
+</aside>
+
+<div id="confirm" class="confirm" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="confirm__panel">
+    <h2 id="confirm-title">Réinitialiser la disposition ?</h2>
+    <p>Les cartes reprennent leur taille et leur place par défaut. Les données ne sont pas touchées.</p>
+    <div class="confirm__actions">
+      <button id="confirm-cancel" class="btn" type="button">Annuler</button>
+      <button id="confirm-ok" class="btn btn--danger" type="button">Réinitialiser</button>
+    </div>
+  </div>
+</div>
+
+<template id="card-template">
+  <div class="card" data-density="normal">
+    <header class="card__head">
+      <button class="card__chevron" type="button" aria-label="Replier">
+        <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2 4.5 6 8l4-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span class="card__pill" data-severity="unknown" aria-hidden="true"></span>
+      <h2 class="card__title"></h2>
+      <span class="card__meta"></span>
+      <button class="card__hide" type="button" aria-label="Masquer la carte">✕</button>
+    </header>
+    <div class="card__body"></div>
+  </div>
+</template>
+
+<script src="/vendor/gridstack/gridstack-all.js"></script>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

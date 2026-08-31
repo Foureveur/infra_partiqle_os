@@ -1,0 +1,39 @@
+# Fragment à recopier dans /opt/studio-os/docker-compose.yml, sous `services:`.
+# Calqué sur le service `naming` : build local, restart, réseau studio-net,
+# limites de ressources.
+#
+# À VÉRIFIER AVANT DE COLLER (le brief a été relevé le 31/08, l'infra bouge) :
+#   - le nom exact du réseau dans le compose (`studio-net`)
+#   - la forme des limites employée par les autres services (`deploy.resources`
+#     n'est honoré hors Swarm que par Compose v2 récent ; si les autres services
+#     utilisent `mem_limit`/`cpus`, faire pareil plutôt que d'introduire un
+#     second style)
+#   - que `services/infra.env` existe et est en 0600
+
+  infra:
+    build: ./services/infra
+    container_name: studio-os-infra-1
+    restart: unless-stopped
+    env_file:
+      - ./services/infra.env
+    environment:
+      # Ces deux-là ne sont pas des secrets : ils décrivent la disposition des
+      # volumes, et le Dockerfile pose déjà les mêmes valeurs par défaut.
+      INFRA_DATA_DIR: /app/var
+      INFRA_TABLES_DIR: /app/data
+    volumes:
+      # État produit à l'exécution : state.json, layout.<user>.json, machines/.
+      - ./data/infra:/app/var
+      # Tables éditables à la main (liens, plateformes, machines, cartes).
+      # En lecture seule, et montées : ajouter un lien ne demande donc ni de
+      # toucher au code ni de reconstruire l'image (§4.2).
+      - ./services/infra/data:/app/data:ro
+    networks:
+      - studio-net
+    expose:
+      - "3000"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"

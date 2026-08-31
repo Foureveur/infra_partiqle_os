@@ -1,0 +1,65 @@
+{
+  "groups": [
+    {
+      "id": "piloter",
+      "label": "Piloter",
+      "links": [
+        { "label": "Studio OS",  "url": "https://os.partiqle.studio",        "monitorHint": "os.partiqle.studio" },
+        { "label": "Roadmaps",   "url": "https://roadmaps.partiqle.studio",  "monitorHint": "roadmaps.partiqle.studio" },
+        { "label": "NOMA",       "url": "https://noma.partiqle.studio",      "monitorHint": "noma.partiqle.studio" },
+        { "label": "Hub WP",     "url": "https://hub.partiqle.studio",       "monitorHint": "hub.partiqle.studio" },
+        { "label": "n8n",        "url": "https://n8n.partiqle.studio",       "monitorHint": "n8n.partiqle.studio" },
+        { "label": "Portal",     "url": "https://portal.partiqle.studio",    "monitorHint": "portal.partiqle.studio" },
+        { "label": "Templates",  "url": "https://templates.partiqle.studio", "monitorHint": "templates.partiqle.studio" },
+        { "label": "Library",    "url": "https://library.partiqle.studio",   "monitorHint": "library.partiqle.studio" },
+        { "label": "Naming",     "url": "https://naming.partiqle.studio",    "monitorHint": "naming.partiqle.studio" },
+        { "label": "CDN",        "url": "https://cdn.partiqle.studio",       "monitorHint": "cdn.partiqle.studio" }
+      ]
+    },
+    {
+      "id": "surveiller",
+      "label": "Surveiller",
+      "links": [
+        { "label": "Kuma",      "url": "https://status.partiqle.studio", "monitorHint": null },
+        { "label": "GlitchTip", "url": "https://bugs.partiqle.studio",   "monitorHint": "bugs.partiqle.studio" },
+        { "label": "Authelia",  "url": "https://auth.partiqle.studio",   "monitorHint": "auth.partiqle.studio" }
+      ]
+    },
+    {
+      "id": "produits",
+      "label": "Produits",
+      "links": [
+        { "label": "immomap",            "url": "https://immomap.partiqle.studio",             "monitorHint": "immomap.partiqle.studio" },
+        { "label": "immomap — app",      "url": "https://app.immomap.partiqle.studio",         "monitorHint": "app.immomap.partiqle.studio" },
+        { "label": "bookforger",         "url": "https://bookforger.partiqle.studio",          "monitorHint": "bookforger.partiqle.studio" },
+        { "label": "bookfounder",        "url": "https://bookfounder.partiqle.studio",         "monitorHint": "bookfounder.partiqle.studio" },
+        { "label": "bookforger staging", "url": "https://bookforger-staging.partiqle.studio",  "monitorHint": "bookforger-staging.partiqle.studio" }
+      ]
+    },
+    {
+      "id": "mcp",
+      "label": "MCP auto-hébergés",
+      "links": [
+        { "label": "mcp-wp",         "url": "https://mcp-wp.partiqle.studio",        "monitorHint": "mcp-wp" },
+        { "label": "mcp-noma",       "url": "https://mcp-noma.partiqle.studio",      "monitorHint": "mcp-noma" },
+        { "label": "mcp-spacia",     "url": "https://mcp-spacia.partiqle.studio",    "monitorHint": "mcp-spacia" },
+        { "label": "mcp-immomap",    "url": "https://mcp-immomap.partiqle.studio",   "monitorHint": "mcp-immomap" },
+        { "label": "hostinger-mcp",  "url": "https://hostinger-mcp.partiqle.studio", "monitorHint": "hostinger-mcp" },
+        { "label": "mcp-roadmaps",   "url": "https://roadmaps.partiqle.studio/mcp",  "monitorHint": "mcp-roadmaps" }
+      ]
+    },
+    {
+      "id": "externe",
+      "label": "Externe",
+      "external": true,
+      "links": [
+        { "label": "hPanel Hostinger", "url": "https://hpanel.hostinger.com/",   "monitorHint": null },
+        { "label": "Cloudflare",       "url": "https://dash.cloudflare.com/",    "monitorHint": null },
+        { "label": "Webflow",          "url": "https://webflow.com/dashboard",   "monitorHint": null },
+        { "label": "Lovable",          "url": "https://lovable.dev/",            "monitorHint": null },
+        { "label": "Vercel",           "url": "https://vercel.com/dashboard",    "monitorHint": null },
+        { "label": "SiteGround",       "url": "https://login.siteground.com/",   "monitorHint": null, "until": "2026-10-05" }
+      ]
+    }
+  ]
+}

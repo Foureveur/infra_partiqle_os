@@ -1,0 +1,47 @@
+# Bloc à ajouter à /opt/studio-os/config/caddy/Caddyfile.
+#
+# Sauvegarder AVANT, suivant la convention en place — il y a déjà huit
+# sauvegardes datées, c'est un usage établi :
+#   cp Caddyfile Caddyfile.bak-infra-$(date +%Y%m%d)
+#
+# Puis valider avant de recharger :
+#   docker compose exec caddy caddy validate --config /etc/caddy/Caddyfile
+#   docker compose exec caddy caddy reload   --config /etc/caddy/Caddyfile
+
+infra.partiqle.studio {
+    # Ingestion : écriture seule, jeton par machine, HORS Authelia — sinon la
+    # pousse se fait rediriger vers la page de login. Doit être déclaré AVANT
+    # le handle général, sans quoi forward_auth l'attrape.
+    @ingest path /api/ingest/*
+    handle @ingest {
+        # Défense en profondeur, optionnelle : restreindre l'ingestion aux IP
+        # des quatre VPS. Le service vérifie déjà un jeton par machine ; ceci
+        # écarte en plus le bruit d'Internet. Décommenter en remplaçant les
+        # adresses par celles relevées sur hPanel — je ne les ai pas.
+        #
+        # @notvps not remote_ip 76.13.53.158 <ip-saas-01> <ip-clients-01> <ip-lab>
+        # abort @notvps
+
+        reverse_proxy infra:3000
+    }
+
+    handle {
+        forward_auth authelia:9091 {
+            uri /api/authz/forward-auth
+            copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
+        }
+        reverse_proxy infra:3000
+    }
+
+    header {
+        -Server
+        Strict-Transport-Security "max-age=31536000;"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+    }
+
+    log {
+        output file /data/access-infra.log
+        format json
+    }
+}
