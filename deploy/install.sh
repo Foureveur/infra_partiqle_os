@@ -63,7 +63,8 @@ act() {
 }
 
 DC="docker compose"
-command -v docker >/dev/null 2>&1 || DC=""
+DOCKER_BIN="$(command -v docker 2>/dev/null)"
+[ -n "$DOCKER_BIN" ] || DC=""
 if [ -n "$DC" ] && ! docker compose version >/dev/null 2>&1; then
   command -v docker-compose >/dev/null 2>&1 && DC="docker-compose"
 fi
@@ -237,13 +238,22 @@ EOF
   else
     todo "ajouter le cron de pousse (toutes les 5 min, sous flock)"
     act bash -c "(crontab -l 2>/dev/null; echo '*/5 * * * * flock -n /run/infra-report.lock /usr/local/bin/infra-report.sh >> /var/log/infra-report.log 2>&1') | crontab -"
+    if [ "$MODE" = "apply" ]; then
+      crontab -l 2>/dev/null | grep -q 'infra-report.sh' \
+        && done_ "cron de pousse installé" || bad "cron de pousse NON installé"
+    fi
   fi
 
   if crontab -l 2>/dev/null | grep -q 'infra/src/collector'; then
     skip "cron de collecte déjà présent"
   else
     todo "ajouter le cron de collecte (toutes les 5 min, sous flock)"
-    act bash -c "(crontab -l 2>/dev/null; echo \"*/5 * * * * flock -n /run/infra-collect.lock $DC -f $COMPOSE_FILE exec -T infra node src/collector/index.js >> /var/log/infra-collect.log 2>&1\") | crontab -"
+    # Chemin absolu : « docker » seul n'est pas résolu par le PATH de cron.
+    act bash -c "(crontab -l 2>/dev/null; echo \"*/5 * * * * flock -n /run/infra-collect.lock $DOCKER_BIN compose -f $COMPOSE_FILE exec -T infra node src/collector/index.js >> /var/log/infra-collect.log 2>&1\") | crontab -"
+    if [ "$MODE" = "apply" ]; then
+      crontab -l 2>/dev/null | grep -q 'infra/src/collector\|src/collector/index.js' \
+        && done_ "cron de collecte installé" || bad "cron de collecte NON installé"
+    fi
   fi
 
   if [ "$MODE" = "apply" ]; then
