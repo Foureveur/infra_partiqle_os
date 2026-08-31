@@ -100,6 +100,9 @@ fi
 step "Secrets — services/infra.env"
 
 gen_env() {
+  # Sous-shell : sans lui, cet umask contaminerait tout le reste du script et
+  # les fichiers créés plus bas hériteraient de 0600 (bug vu en production).
+  (
   umask 077
   {
     sed -n '1,/^INFRA_PUSH_TOKEN_VPS_CORE=/p' "$SERVICE_DIR/.env.example" | sed '$d'
@@ -109,6 +112,7 @@ gen_env() {
     echo "INFRA_PUSH_TOKEN_VPS_LAB=$(openssl rand -hex 32)"
     sed -n '/^INFRA_PUSH_TOKEN_VPS_LAB=/,$p' "$SERVICE_DIR/.env.example" | tail -n +2
   } > "$ENV_FILE"
+  )
   chmod 600 "$ENV_FILE"
 }
 
@@ -222,7 +226,6 @@ if [ "$WITH_REPORT" = "1" ]; then
     todo "installer infra-report.sh et /etc/infra-report.env (écriture locale, sans jeton ni réseau)"
     install_report() {
       install -m 0755 "$SERVICE_DIR/deploy/infra-report.sh" /usr/local/bin/infra-report.sh
-      umask 077
       cat > /etc/infra-report.env <<EOF
 INFRA_MACHINE=vps-core
 INFRA_INGEST_FILE=$DATA_DIR/machines/vps-core.json
@@ -257,8 +260,12 @@ EOF
   fi
 
   if [ "$MODE" = "apply" ]; then
-    /usr/local/bin/infra-report.sh >/dev/null 2>&1 \
-      && done_ "première pousse écrite" || bad "la première pousse a échoué — bash -x /usr/local/bin/infra-report.sh"
+    if /usr/local/bin/infra-report.sh >/dev/null 2>&1; then
+      chmod 644 "$DATA_DIR"/machines/*.json 2>/dev/null
+      done_ "première pousse écrite"
+    else
+      bad "la première pousse a échoué — bash -x /usr/local/bin/infra-report.sh"
+    fi
     $DC -f "$COMPOSE_FILE" exec -T infra node src/collector/index.js >/dev/null 2>&1 \
       && done_ "première collecte effectuée" || skip "collecte à relancer une fois le conteneur prêt"
   fi

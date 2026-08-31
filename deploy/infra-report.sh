@@ -151,6 +151,11 @@ if [ -n "${INFRA_INGEST_FILE:-}" ]; then
   # jeton (§3.2bis.6). Écriture atomique, comme partout ailleurs.
   TMP="${INFRA_INGEST_FILE}.tmp.$$"
   printf '%s\n' "$PAYLOAD" > "$TMP" || { log "écriture impossible dans $TMP"; exit 1; }
+  # Mode explicite, jamais hérité de l'umask de l'appelant : ce script tourne en
+  # root, le service lit en uid 1000. Un fichier créé en 0600 root serait
+  # illisible pour lui, et la machine apparaîtrait « silencieuse » alors qu'elle
+  # a bien poussé — un mensonge par omission, exactement ce qu'on veut éviter.
+  chmod 644 "$TMP" || true
   mv -f "$TMP" "$INFRA_INGEST_FILE" || { log "renommage impossible vers $INFRA_INGEST_FILE"; rm -f "$TMP"; exit 1; }
   log "état écrit dans $INFRA_INGEST_FILE"
   exit 0
