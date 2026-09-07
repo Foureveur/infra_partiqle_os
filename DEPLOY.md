@@ -44,7 +44,7 @@ comprendre ce que l'installeur fabrique.
 ```bash
 cd /opt/studio-os/services
 git clone https://github.com/Foureveur/infra_partiqle_os.git infra
-cd infra && git checkout claude/infra-partiqle-dashboard-95azo6
+cd infra && git checkout main
 ```
 
 Rien à installer : le service n'a aucune dépendance npm. Les polices et

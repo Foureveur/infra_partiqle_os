@@ -105,7 +105,7 @@ le conteneur continue de faire tourner l'ancien code, et on débogue une version
 qu'on ne lit pas.
 
 ```bash
-ssh vps-core 'curl -fsSL https://codeload.github.com/Foureveur/infra_partiqle_os/tar.gz/refs/heads/claude/infra-partiqle-dashboard-95azo6 \
+ssh vps-core 'curl -fsSL https://codeload.github.com/Foureveur/infra_partiqle_os/tar.gz/refs/heads/main \
   | tar -xz -C /opt/studio-os/services/infra --strip-components=1 \
   && cd /opt/studio-os && docker compose up -d --build infra'
 ```

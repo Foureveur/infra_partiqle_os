@@ -73,7 +73,7 @@ Aucune dépendance à installer, aucun jeton, aucun Docker. Node 20 ou plus suff
 ```bash
 git clone https://github.com/Foureveur/infra_partiqle_os.git
 cd infra_partiqle_os
-git checkout claude/infra-partiqle-dashboard-95azo6
+git checkout main
 
 npm run demo     # écrit un état de démonstration dans ./var
 npm run dev      # http://localhost:3000
