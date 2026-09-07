@@ -56,11 +56,36 @@ function markerKind(marker) {
   return marker.type || 'milestone';
 }
 
+/**
+ * Fusionne l'agenda et les prochaines échéances de projet.
+ *
+ * Les deux n'ont PAS la même nature, et les traiter pareil était un défaut —
+ * relevé le 07/09 en relisant le contrat publié par Roadmaps :
+ *
+ *   - `markers[]` est un AGENDA : « qu'y a-t-il dans cette tranche de temps ».
+ *     Sa fenêtre est un choix d'affichage, déjà appliqué côté serveur.
+ *   - `nextMarker` est un ÉTAT DE PROJET : « quelle est la prochaine échéance
+ *     de cette roadmap », quelle que soit sa distance. L'endpoint ne la borne
+ *     délibérément pas.
+ *
+ * On appliquait le même horizon de 90 jours aux deux. Résultat : la prochaine
+ * échéance d'un projet située à six mois disparaissait purement et simplement
+ * du tableau. Sur des dates irréversibles — une expiration de domaine — c'est
+ * la pire façon de se tromper : ne rien afficher se lit comme « rien à
+ * signaler ».
+ *
+ * Désormais l'horizon ne s'applique qu'à l'agenda. Une prochaine échéance
+ * lointaine entre dans la liste et se range d'elle-même en bas, la carte
+ * triant par urgence.
+ */
 function collectMarkers(payload, projects) {
-  const raw = Array.isArray(payload.markers) ? payload.markers : [];
+  const raw = (Array.isArray(payload.markers) ? payload.markers : []).map((m) => ({
+    ...m,
+    markerOrigin: 'agenda',
+  }));
   const fromProjects = projects
     .filter((p) => p.nextMarker && p.nextMarker.date)
-    .map((p) => ({ ...p.nextMarker, roadmapTitle: p.title }));
+    .map((p) => ({ ...p.nextMarker, roadmapTitle: p.title, markerOrigin: 'nextMarker' }));
 
   const seen = new Set();
   const horizon = Date.now() + HORIZON_DAYS * 86400_000;
@@ -72,13 +97,14 @@ function collectMarkers(payload, projects) {
       label: m.label,
       kind: markerKind(m),
       project: m.roadmapTitle || null,
+      markerOrigin: m.markerOrigin,
     }))
     .filter((m) => {
       const t = Date.parse(m.date.length === 10 ? `${m.date}T00:00:00Z` : m.date);
       if (!Number.isFinite(t)) return false;
       // On garde tout ce qui est déjà dépassé : une échéance ratée doit rester
       // visible, pas disparaître de la liste.
-      if (t > horizon) return false;
+      if (m.markerOrigin === 'agenda' && t > horizon) return false;
       const key = `${m.date}|${m.label}`;
       if (seen.has(key)) return false;
       seen.add(key);
@@ -115,4 +141,4 @@ async function collect() {
   };
 }
 
-module.exports = { collect, markerKind };
+module.exports = { collect, markerKind, collectMarkers };

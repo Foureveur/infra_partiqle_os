@@ -252,6 +252,40 @@ R="$(backup_of)"
 [ "${R%%|*}" = "unknown" ] && ok "constat vieux de 20 min ⇒ inconnu, malgré un snapshot frais" \
   || ko "constat périmé" "obtenu : $R"
 
+# ------------------------------------------------------- échéances Roadmaps
+# `markers[]` est un agenda borné ; `nextMarker` est un état de projet que
+# l'endpoint ne borne délibérément pas. Leur appliquer le même horizon faisait
+# disparaître la prochaine échéance d'un projet lointain — sur une expiration
+# de domaine, ne rien afficher se lit comme « rien à signaler ».
+head2 "Échéances — l'agenda se borne, l'état de projet non"
+
+DEAD="$(node -e '
+const { collectMarkers } = require("./src/collector/sources/roadmaps");
+const iso = (d) => new Date(Date.now() + d * 86400e3).toISOString().slice(0, 10);
+const payload = { markers: [
+  { date: iso(10),  label: "Jalon proche",   roadmapTitle: "P" },
+  { date: iso(200), label: "Jalon lointain", roadmapTitle: "P" }
+]};
+const projects = [
+  { title: "Q", nextMarker: { date: iso(180), label: "Expiration domaine-q.fr" } }
+];
+const out = collectMarkers(payload, projects);
+const has = (l) => out.some((d) => d.label === l);
+const res = [];
+res.push(has("Jalon proche") ? "proche-ok" : "proche-KO");
+res.push(!has("Jalon lointain") ? "agenda-borne-ok" : "agenda-borne-KO");
+res.push(has("Expiration domaine-q.fr") ? "nextmarker-ok" : "nextmarker-KO");
+const reg = out.find((d) => d.label === "Expiration domaine-q.fr");
+res.push(reg && reg.kind === "registrar" ? "registrar-ok" : "registrar-KO");
+console.log(res.join(" "));')"
+
+for CASE in $DEAD; do
+  case "$CASE" in
+    *-ok) ok "échéances : ${CASE%-ok}" ;;
+    *)    ko "échéances : $CASE" ;;
+  esac
+done
+
 # ------------------------------------------------------------- sondes méta
 # Une sonde qui invente est pire qu'une sonde absente : elle produit un
 # « confirmé » que personne n'a constaté. On vérifie donc surtout ce qu'elle
