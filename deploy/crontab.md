@@ -88,6 +88,29 @@ ssh vps-core 'curl -fsSL https://codeload.github.com/Foureveur/infra_partiqle_os
   && cd /opt/studio-os && docker compose up -d --build infra'
 ```
 
+### `--build` ne rafraîchit PAS l'image de base
+
+Troisième variante du même piège, relevée le 07/09 par la veille d'images :
+`studio-os-infra` remontait 1 CRITICAL et 12 HIGH. Aucun ne vient du code — le
+service n'a aucune dépendance npm — ils viennent tous de `node:22-alpine`.
+
+`docker compose up -d --build` reconstruit les couches du projet, mais **ne
+retélécharge pas l'image de base** : Docker réutilise le digest déjà résolu en
+cache. On peut donc reconstruire pendant des mois sur un `node:22-alpine` figé
+au premier build.
+
+```bash
+# Reconstruire EN RAFRAÎCHISSANT la base :
+ssh vps-core 'cd /opt/studio-os && docker compose build --pull infra && docker compose up -d infra'
+```
+
+Le `Dockerfile` garde volontairement le tag flottant `node:22-alpine` plutôt
+qu'un digest épinglé. Épingler donnerait des builds reproductibles, mais
+personne ne va relever un digest toutes les semaines : l'image pourrirait sur
+place — ce qui est exactement ce que la veille vient de constater ailleurs dans
+la stack. Tag flottant + `--pull` délibéré au moment de la mise à jour est le
+compromis tenable ici.
+
 ### L'agent de pousse ne suit PAS ce rafraîchissement
 
 Même piège, un cran plus loin, et il s'est déjà refermé une fois (31/08 : les
