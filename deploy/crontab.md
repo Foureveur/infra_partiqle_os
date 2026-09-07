@@ -75,6 +75,28 @@ docker compose exec -T infra node src/collector/index.js --only=kuma --force
 
 Sources : `machines`, `backups`, `kuma`, `glitchtip`, `roadmaps`, `hostinger`.
 
+## Sondes de méta projet
+
+Vérifient ce que Roadmaps déclare sur l'hébergement et la stack de chaque
+projet, et lui renvoient leurs constats. Entrée séparée du collecteur, et
+cadence séparée : collecter est un travail de 5 minutes sur des sources
+internes, sonder est un travail quotidien sur des **sites clients** — on ne les
+martèle pas.
+
+```cron
+# Sondes méta — une fois par jour, 04h17 (heure creuse, décalée des sauvegardes)
+17 4 * * * cd /opt/studio-os && /usr/bin/flock -n /tmp/infra-probes.lock docker compose exec -T infra node src/probes/index.js >> /var/log/infra-probes.log 2>&1
+```
+
+`--dry-run` montre ce qui serait envoyé sans rien écrire ; `--only=<id ou titre>`
+limite à un projet. Les deux servent à la mise au point sans toucher aux
+données.
+
+La sonde n'écrit que par la route qui ne peut pas atteindre les déclarations.
+Si elle se trompe, elle produit un **écart visible** dans Roadmaps — jamais une
+vérité silencieuse. Elle ne sonde par ailleurs que les environnements déjà
+déclarés : découvrir des URL reviendrait à inventer la structure du projet.
+
 ## Mettre à jour le code
 
 `src/` et `public/` sont **copiés dans l'image** au build, ils ne sont pas

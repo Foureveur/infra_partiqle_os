@@ -252,6 +252,51 @@ R="$(backup_of)"
 [ "${R%%|*}" = "unknown" ] && ok "constat vieux de 20 min ⇒ inconnu, malgré un snapshot frais" \
   || ko "constat périmé" "obtenu : $R"
 
+# ------------------------------------------------------------- sondes méta
+# Une sonde qui invente est pire qu'une sonde absente : elle produit un
+# « confirmé » que personne n'a constaté. On vérifie donc surtout ce qu'elle
+# REFUSE de conclure. Assertions sans réseau : ce sont des fonctions pures.
+head2 "Sondes — ne jamais conclure dans le doute"
+
+PROBE="$(node -e '
+const f = require("./src/probes/fingerprint");
+const out = [];
+const H = (o) => new Headers(o);
+
+// Le fournisseur ne se déduit que d une preuve dans les en-tetes.
+out.push(f.providerFromHeaders(H({ server: "cloudflare" })) === "Cloudflare" ? "cf-ok" : "cf-KO");
+out.push(f.providerFromHeaders(H({ "x-vercel-id": "abc" })) === "Vercel" ? "vercel-ok" : "vercel-KO");
+// Un serveur banal ne doit RIEN produire : nginx nest pas un hebergeur.
+out.push(f.providerFromHeaders(H({ server: "nginx" })) === null ? "inconnu-ok" : "inconnu-KO");
+
+// WordPress sannonce de trois facons independantes ; une seule suffit.
+out.push(f.primaryFromBody(H({}), "<link href=/wp-content/x.css>", false) === "WordPress" ? "wp-ok" : "wp-KO");
+out.push(f.primaryFromBody(H({}), "", true) === "WordPress" ? "wpjson-ok" : "wpjson-KO");
+// Mais leur ABSENCE ne prouve rien : on rend null, pas « pas WordPress ».
+out.push(f.primaryFromBody(H({}), "<html><body>bonjour</body></html>", false) === null ? "muet-ok" : "muet-KO");
+out.push(f.primaryFromBody(H({}), "<div data-sveltekit-preload></div>", false) === "SvelteKit" ? "sk-ok" : "sk-KO");
+console.log(out.join(" "));')"
+
+for CASE in $PROBE; do
+  case "$CASE" in
+    *-ok) ok "sonde : ${CASE%-ok}" ;;
+    *)    ko "sonde : $CASE" ;;
+  esac
+done
+
+# Une URL qu on ne peut pas sonder est une observation, pas une exception.
+GUARD="$(node -e '
+const { probeUrl } = require("./src/probes/fingerprint");
+(async () => {
+  const a = await probeUrl("pas-une-url", []);
+  const b = await probeUrl("ftp://x.fr", []);
+  const ok = a.reachable === false && a.error && a.machine === null
+          && b.reachable === false && b.error && b.provider === null;
+  console.log(ok ? "garde-ok" : "garde-KO");
+})();')"
+[ "$GUARD" = "garde-ok" ] && ok "sonde : URL illisible ⇒ constat, jamais valeur inventée" \
+  || ko "sonde : garde-fous d URL"
+
 # --------------------------------------------------- lecture des métriques
 # Deux fois de suite, un lecteur de métriques a rendu `null` sans rien dire —
 # GlitchTip d'abord, Hostinger ensuite. Un `null` silencieux ne se voit pas à
