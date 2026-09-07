@@ -78,12 +78,60 @@ Les échéances vraiment critiques ne dépendent pas de cette heuristique : elle
 sont tenues à la main dans `data/deadlines.json` du dépôt infra, avec un `kind`
 explicite. Les deux sources fusionnent par date + libellé.
 
-## Réservé, non implémenté
+## `nextMarker` n'est PAS borné par la fenêtre
 
-L'endpoint prévoit un objet `meta` optionnel par roadmap — hébergement, stack,
-environnements — rattaché à l'item roadmap « référencer l'hébergement & la stack
-des projets », prévu fin octobre. Il n'est **pas émis aujourd'hui** et le
-collecteur ne doit pas en dépendre.
+Le piège le plus facile de tout ce contrat, et il nous a eus jusqu'au 07/09.
+
+- `markers[]` est un **agenda** : « qu'y a-t-il dans cette tranche de temps ».
+  Sa fenêtre est un choix d'affichage, déjà appliqué par le serveur.
+- `nextMarker` est un **état de projet** : « quelle est la prochaine échéance de
+  cette roadmap », quelle que soit sa distance. Volontairement non borné — sinon
+  un projet dont l'échéance est à six mois renverrait `null` et se lirait comme
+  *inactif* alors qu'il est seulement *pas imminent*.
+
+Le collecteur appliquait son propre horizon de 90 jours aux deux. La prochaine
+échéance d'un projet lointain disparaissait donc du tableau. Sur une expiration
+de domaine, c'est la pire façon de se tromper : ne rien afficher se lit comme
+« rien à signaler ».
+
+Corrigé : l'horizon ne s'applique qu'à l'agenda. La provenance est portée par
+`markerOrigin`, distinct d'`origin` qui sert déjà en aval à séparer la table
+tenue à la main de ce qui vient de Roadmaps.
+
+**Conséquence à retenir :** un jalon peut apparaître dans `nextMarker` sans être
+dans `markers[]`. Ce n'est pas une incohérence.
+
+## `meta` — implémenté le 07/09, et pas sous la forme annoncée
+
+Ce champ a longtemps été « réservé, non implémenté », avec une forme plate
+prévue (`hosting: "hostinger-vps"`, `stack: ["sveltekit", …]`). **Cette forme
+n'a pas survécu** à la contrainte « sondable, pas déclaratif » ajoutée le 07/09.
+
+Chaque champ porte désormais sa déclaration ET son observation, et la synthèse
+en émet une version réduite :
+
+```jsonc
+"meta": {                                  // null tant que rien n'est déclaré
+  "hosting": { "provider": { "value": "Hostinger", "state": "confirmed" },
+               "machine":  { "value": "vps-lab",   "state": "drift" } },
+  "stack":   { "voie": …, "primary": …, "database": …, "containerized": … },
+  "environments": [{ "name": "prod", "value": "https://…", "state": "confirmed" }],
+  "drift": ["hosting.machine"],
+  "unverified": ["stack.primary"]
+}
+```
+
+`state` vaut `confirmed` · `drift` · `observed-only` · `stale` · `unverified` ·
+`declarative` · `empty`. **`drift` est la partie utile** : les champs où la sonde
+contredit la déclaration. C'est ça qu'il faut remonter, pas la valeur.
+
+`meta` reste **optionnel** : `null` quand rien n'est renseigné, plutôt qu'un
+squelette de `null` qui se lirait comme une méta remplie de vide. Le collecteur
+doit continuer à savoir vivre sans.
+
+Le contrat complet — forme stockée, routes d'écriture, pourquoi deux valeurs par
+champ — est dans `docs/project-meta.md` du dépôt Roadmaps. C'est la référence ;
+ce qui est ici n'en est que la part consommée.
 
 ## Vérifier
 
